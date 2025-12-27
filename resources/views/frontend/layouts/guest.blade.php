@@ -38,6 +38,7 @@
                 linear-gradient(135deg, #fff6f8, #f9f1f4 50%, #fefefe);
             min-height: 100vh;
             color: var(--text-main);
+            overflow: hidden;
         }
 
         .auth-shell {
@@ -89,16 +90,22 @@
             margin: auto;
             padding: 3rem 2.5rem;
         }
+.auth-card {
+    width: 100%;
+    max-width: 1100px;
+    padding: clamp(1.5rem, 3vw, 3rem);
+    background: var(--surface);
+    border-radius: 1.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .08);
+    border: 1px solid #f3e7ea;
 
-        .auth-card {
-            max-width: 820px;
-            margin: 0 auto;
-            padding: 2.5rem;
-            background: var(--surface);
-            border-radius: 1.5rem;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, .08);
-            border: 1px solid #f3e7ea;
-        }
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+
+
 
         .auth-card h1 {
             font-weight: 900;

@@ -1,643 +1,681 @@
-    @extends('dashboard.layouts.master')
-    @section('content_dash')
-        <!-- Main content -->
-            <div class="content-area">
-                <div class="container-fluid" style="max-width: 1280px;">
-                    <!-- Header -->
-                    <header
-                        class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
-                        <div>
-                            <h1 class="display-6 fw-black m-0" style="font-weight: 900;">إدارة المنتجات</h1>
-                            <p class="text-secondary-custom mb-0">إدارة قائمة المنتجات وتحديث المخزون</p>
-                        </div>
+@extends('dashboard.layouts.master')
 
-                        <div class="d-flex align-items-center gap-2">
-                            <button class="btn btn-light border border-soft rounded-xl px-3 py-2">
-                                <span class="material-symbols-outlined align-middle"
-                                    style="font-size:20px;">file_upload</span>
-                                <span class="fw-bold small align-middle">تصدير</span>
-                            </button>
+@section('content_dash')
+    <div class="content-area">
+        <div class="container-fluid" style="max-width: 1280px;">
+            <header class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+                <div>
+                    <h1 class="display-6 fw-black m-0" style="font-weight: 900;">إدارة المنتجات</h1>
+                    <p class="text-secondary-custom mb-0">عرض وإضافة وتعديل المنتجات مع الأقسام والصور من نفس الصفحة.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn text-white rounded-xl px-4 py-2" style="background: var(--primary); border: 0;"
+                        data-bs-toggle="modal" data-bs-target="#addProductModal" id="openCreateProduct">
+                        <span class="material-symbols-outlined align-middle" style="font-size:20px;">add</span>
+                        <span class="fw-bold small align-middle">إضافة منتج جديد</span>
+                    </button>
+                </div>
+            </header>
 
-                            <button class="btn text-white rounded-xl px-4 py-2"
-                                style="background: var(--primary); border: 0;" data-bs-toggle="modal"
-                                data-bs-target="#addProductModal">
-                                <span class="material-symbols-outlined align-middle" style="font-size:20px;">add</span>
-                                <span class="fw-bold small align-middle">إضافة منتج جديد</span>
-                            </button>
-                        </div>
-                    </header>
+            @if (session('status'))
+                <div class="alert alert-success rounded-xl border-0" role="alert">
+                    {{ session('status') }}
+                </div>
+            @endif
 
-                    <!-- Search + Filters -->
-                    <div class="panel rounded-xl p-3 p-md-4 shadow-sm mb-4">
-                        <div class="row g-3 align-items-center">
-                            <div class="col-12 col-md">
-                                <div class="search-wrap">
-                                    <span class="material-symbols-outlined search-icon">search</span>
-                                    <input type="text" class="form-control rounded-xl search-input py-3"
-                                        placeholder="بحث عن اسم المنتج، الرقم التسلسلي..." />
-                                </div>
-                            </div>
+            @if ($errors->any())
+                <div class="alert alert-danger rounded-xl border-0" role="alert">
+                    <div class="fw-bold mb-1">تعذّر الحفظ:</div>
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
-                            <div class="col-12 col-md-auto">
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <select class="form-select rounded-xl border-0"
-                                        style="background: var(--bg-light); min-width: 160px;">
-                                        <option value="">جميع الأقسام</option>
-                                        <option value="gifts">هدايا رجالية</option>
-                                        <option value="perfumes">عطور</option>
-                                        <option value="flowers">زهور</option>
-                                    </select>
-
-                                    <select class="form-select rounded-xl border-0"
-                                        style="background: var(--bg-light); min-width: 160px;">
-                                        <option value="">حالة المخزون</option>
-                                        <option value="instock">متوفر</option>
-                                        <option value="lowstock">كمية منخفضة</option>
-                                        <option value="outofstock">نفذت الكمية</option>
-                                    </select>
-
-                                    <button class="btn rounded-xl border-0" style="background: var(--bg-light);">
-                                        <span class="material-symbols-outlined">filter_list</span>
-                                    </button>
-                                </div>
-                            </div>
+            <div class="panel rounded-xl p-3 p-md-4 shadow-sm mb-4">
+                <form id="filtersForm" method="GET" class="row g-3 align-items-center">
+                    <div class="col-12 col-md">
+                        <div class="search-wrap">
+                            <span class="material-symbols-outlined search-icon">search</span>
+                            <input type="text" name="q" value="{{ $search }}"
+                                class="form-control rounded-xl search-input py-3" placeholder="ابحث باسم المنتج أو الوصف..." />
                         </div>
                     </div>
+                    <div class="col-12 col-md-auto">
+                        <div class="d-flex gap-2 flex-wrap">
+                            <select name="category_id" class="form-select rounded-xl border-0"
+                                style="background: var(--bg-light); min-width: 160px;">
+                                <option value="">كل الأقسام</option>
+                                @foreach ($categories as $category)
+                                    <option value="{{ $category->id }}" @selected($categoryFilter == $category->id)>{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                            <select name="stock_status" class="form-select rounded-xl border-0"
+                                style="background: var(--bg-light); min-width: 160px;">
+                                <option value="">كل الحالات</option>
+                                <option value="instock" @selected($stockFilter === 'instock')>متوفر (أكثر من 5)</option>
+                                <option value="low" @selected($stockFilter === 'low')>متوفر (1 - 5)</option>
+                                <option value="out" @selected($stockFilter === 'out')>غير متوفر</option>
+                            </select>
+                            <button class="btn rounded-xl border-0 d-flex align-items-center gap-1"
+                                style="background: var(--bg-light);" type="submit">
+                                <span class="material-symbols-outlined">filter_list</span>
+                                <span class="small fw-semibold">تصفية</span>
+                            </button>
+                            <a href="{{ route('dashboard.products.index') }}" class="btn btn-light rounded-xl border-0">
+                                إعادة ضبط
+                            </a>
+                        </div>
+                    </div>
+                </form>
+                <div class="small text-secondary-custom mt-2">التصفية والبحث تعمل تلقائياً، ويمكن إعادة الضبط.</div>
+            </div>
 
-                    <!-- Table -->
-                    <div class="panel rounded-xl shadow-sm overflow-hidden">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle m-0 text-end">
-                                <thead>
-                                    <tr style="background: var(--bg-light);">
-                                        <th class="px-4 py-3 text-secondary-custom small fw-bold">المنتج</th>
-                                        <th class="px-4 py-3 text-secondary-custom small fw-bold">القسم</th>
-                                        <th class="px-4 py-3 text-secondary-custom small fw-bold">السعر</th>
-                                        <th class="px-4 py-3 text-secondary-custom small fw-bold">الكمية</th>
-                                        <th class="px-4 py-3 text-secondary-custom small fw-bold">الحالة</th>
-                                        <th class="px-4 py-3 text-secondary-custom small fw-bold text-center">إجراءات
-                                        </th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    <!-- Row 1 -->
-                                    <tr>
-                                        <td class="px-4 py-3">
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="thumb"
-                                                    style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuAp1p5DQr9lr7XmkGFo-NKyneQtJwKnu9fs1phILOJ3uS4qpAgVZqXT2kholamyvOc0om3y9kSdVtkMSoKHHv4ogx-ASp7m_FTwhUC5EfWS4t2ubquLD45LK0RBrgJ9EM_5by-RdC5lTxlTy4k2ef_bZl112o4FMoOgzzAewEXLs_xkkHn40bP_YyqPyLqFipxh9LRLOxWes8Fr7_qoBDfIURTaVHM3hIl0meq1phyFL7TW6B-UUoiiNJZ8Pe-VMqp_mvcm-kivDVM');">
-                                                </div>
-                                                <div>
-                                                    <div class="fw-bold">بوكس هدايا فاخر</div>
-                                                    <div class="text-secondary-custom" style="font-size:.75rem;">SKU:
-                                                        GB-001</div>
+            <div class="panel rounded-xl shadow-sm overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle m-0 text-end">
+                        <thead>
+                            <tr style="background: var(--bg-light);">
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">المنتج</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">القسم</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">السعر</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">المخزون</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">الحالة</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold text-center">العمليات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($products as $product)
+                                @php
+                                    $primary = $product->primary_image;
+                                    $gallery = $product->images;
+                                @endphp
+                                <tr>
+                                    <td class="px-4 py-3">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="thumb"
+                                                style="background-image: {{ $primary ? "url('" . asset('storage/' . $primary->path) . "')" : 'linear-gradient(135deg, #fef3c7, #ffe4e6)' }};">
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ $product->name }}</div>
+                                                <div class="d-flex align-items-center gap-1 mt-1 flex-wrap">
+                                                    @foreach ($gallery->take(3) as $image)
+                                                        <span class="thumb thumb-mini"
+                                                            style="background-image:url('{{ asset('storage/' . $image->path) }}');"></span>
+                                                    @endforeach
+                                                    @if ($gallery->count() > 3)
+                                                        <span class="thumb thumb-mini more">+{{ $gallery->count() - 3 }}</span>
+                                                    @endif
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td class="px-4 py-3 text-secondary-custom fw-semibold">هدايا رجالية</td>
-                                        <td class="px-4 py-3 fw-bold">250 ر.س</td>
-                                        <td class="px-4 py-3 fw-semibold">45</td>
-                                        <td class="px-4 py-3">
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3 text-secondary-custom fw-semibold">
+                                        {{ optional($product->category)->name ?? $product->category ?? '—' }}
+                                    </td>
+                                    <td class="px-4 py-3 fw-bold">{{ number_format($product->price, 2) }} ر.س</td>
+                                    <td class="px-4 py-3 fw-semibold">{{ $product->stock }}</td>
+                                    <td class="px-4 py-3">
+                                        @if ($product->is_published)
                                             <span class="badge rounded-pill" style="background:#dcfce7; color:#15803d;">
                                                 <span class="dot me-1" style="background:#22c55e;"></span>
-                                                متوفر
+                                                منشور
                                             </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-center">
-                                            <button class="icon-btn" type="button">
-                                                <span class="material-symbols-outlined"
-                                                    style="font-size:20px;">edit</span>
-                                            </button>
-                                            <button class="icon-btn danger" type="button">
-                                                <span class="material-symbols-outlined"
-                                                    style="font-size:20px;">delete</span>
-                                            </button>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Row 2 -->
-                                    <tr>
-                                        <td class="px-4 py-3">
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="thumb"
-                                                    style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuAlIe0ZF0ZH4kqYatzB78cyNpHBp7H2CZQXbny1FdavrsFvfA2vD6HSZk5JmYaFqbu_-UmBLjzG5uebcZhs3ty0BOslMsGyjalBSWwO1yFBalTOs8fo0QNqKtvjO2L51an0b0JYZa4T_WZq-5eVIchC8MsoTCEtYejFetj5pPWNGsQlrsHHeaGi1WvPEcL7w4H805QuMaFvxJ91HsBH7T3BHQR7Xd7AhsEZhIPeM7RgIHJHkSxPnn9APzuEb26y5IO-YwQyj2DJFfk');">
-                                                </div>
-                                                <div>
-                                                    <div class="fw-bold">عطر العود الملكي</div>
-                                                    <div class="text-secondary-custom" style="font-size:.75rem;">SKU:
-                                                        PF-024</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-4 py-3 text-secondary-custom fw-semibold">عطور</td>
-                                        <td class="px-4 py-3 fw-bold">450 ر.س</td>
-                                        <td class="px-4 py-3 fw-semibold">3</td>
-                                        <td class="px-4 py-3">
-                                            <span class="badge rounded-pill" style="background:#ffedd5; color:#c2410c;">
-                                                <span class="dot me-1" style="background:#f97316;"></span>
-                                                منخفض
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-center">
-                                            <button class="icon-btn" type="button">
-                                                <span class="material-symbols-outlined"
-                                                    style="font-size:20px;">edit</span>
-                                            </button>
-                                            <button class="icon-btn danger" type="button">
-                                                <span class="material-symbols-outlined"
-                                                    style="font-size:20px;">delete</span>
-                                            </button>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Row 3 -->
-                                    <tr>
-                                        <td class="px-4 py-3">
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="thumb"
-                                                    style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuD5aojQ3HEWCQaBZV2QUEzmwSsv-tf51kV4v7lEuKP2OgxnuSNdn4B4xQpnlM7srSRKmMHsseKYXGm29vBgrMAsKppjBZSpZM9sg-iFgCrtN8G3j-d2sNYUj7ige56OH8YUFNUt03sbNySqmZvEPE3qY5mX-9vfRkWC9v32Kc4em2tADnx-SwRaAHAdrS-GtctA0DayajRrCaxRovVE8s5zrJuLGvblldhnh3QDkG0OU9aPcZeZpth-GgHwpLWSZ5vM9ejUyELLnvA');">
-                                                </div>
-                                                <div>
-                                                    <div class="fw-bold">باقة ورد جوري أحمر</div>
-                                                    <div class="text-secondary-custom" style="font-size:.75rem;">SKU:
-                                                        FL-105</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-4 py-3 text-secondary-custom fw-semibold">زهور</td>
-                                        <td class="px-4 py-3 fw-bold">180 ر.س</td>
-                                        <td class="px-4 py-3 fw-semibold">0</td>
-                                        <td class="px-4 py-3">
+                                        @elseif ($product->stock === 0)
                                             <span class="badge rounded-pill" style="background:#fee2e2; color:#b91c1c;">
                                                 <span class="dot me-1" style="background:#ef4444;"></span>
-                                                نفذت الكمية
+                                                غير متوفر
                                             </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-center">
-                                            <button class="icon-btn" type="button">
-                                                <span class="material-symbols-outlined"
-                                                    style="font-size:20px;">edit</span>
-                                            </button>
-                                            <button class="icon-btn danger" type="button">
-                                                <span class="material-symbols-outlined"
-                                                    style="font-size:20px;">delete</span>
-                                            </button>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Row 4 -->
-                                    <tr>
-                                        <td class="px-4 py-3">
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="thumb"
-                                                    style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuAE88t1yOWweOC0ik5ilQdfnFBeteTFa23IRfvGaUXD6-ulpiEn3HCQXxeL-MHBRBhkg9fnPsWUcNalpILBZ4vdxJ7fpSS6xzl90vsE_JoSX82Xz7HL8CpRZ_ugP1y9HQgG-9ukjX7oTygkGF-JXVgBePljI2RUq4oUMkgwIoHQZBSbce2EK2BZ4Z1C3l2_akYBtpKJ27ZvOtlcAG3W2Xvmsqbgq-uwLwux6NTw4qMnm_hQmpHRD3HyqW4I638igyXaVyEi5RSqD8w');">
-                                                </div>
-                                                <div>
-                                                    <div class="fw-bold">علبة شوكولاتة بلجيكية</div>
-                                                    <div class="text-secondary-custom" style="font-size:.75rem;">SKU:
-                                                        CH-055</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-4 py-3 text-secondary-custom fw-semibold">حلويات</td>
-                                        <td class="px-4 py-3 fw-bold">120 ر.س</td>
-                                        <td class="px-4 py-3 fw-semibold">120</td>
-                                        <td class="px-4 py-3">
-                                            <span class="badge rounded-pill" style="background:#dcfce7; color:#15803d;">
-                                                <span class="dot me-1" style="background:#22c55e;"></span>
-                                                متوفر
+                                        @else
+                                            <span class="badge rounded-pill" style="background:#ffedd5; color:#c2410c;">
+                                                <span class="dot me-1" style="background:#f97316;"></span>
+                                                مسودة
                                             </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-center">
-                                            <button class="icon-btn" type="button">
-                                                <span class="material-symbols-outlined"
-                                                    style="font-size:20px;">edit</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button class="icon-btn edit-product" type="button" data-bs-toggle="modal"
+                                            data-bs-target="#addProductModal"
+                                            data-action="{{ route('dashboard.products.update', $product) }}"
+                                            data-name="{{ $product->name }}"
+                                            data-category-id="{{ $product->category_id }}"
+                                            data-price="{{ $product->price }}"
+                                            data-cost="{{ $product->cost }}"
+                                            data-stock="{{ $product->stock }}"
+                                            data-description="{{ $product->description }}"
+                                            data-published="{{ $product->is_published ? '1' : '0' }}"
+                                            data-images='@json($gallery->map(fn($img) => asset('storage/' . $img->path)))'>
+                                            <span class="material-symbols-outlined" style="font-size:20px;">edit</span>
+                                        </button>
+                                        <form method="POST" action="{{ route('dashboard.products.destroy', $product) }}"
+                                            class="d-inline" onsubmit="return confirm('تأكيد حذف المنتج؟');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="icon-btn danger" type="submit">
+                                                <span class="material-symbols-outlined" style="font-size:20px;">delete</span>
                                             </button>
-                                            <button class="icon-btn danger" type="button">
-                                                <span class="material-symbols-outlined"
-                                                    style="font-size:20px;">delete</span>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Pagination -->
-                        <div class="d-flex align-items-center justify-content-between p-3 border-top border-soft">
-                            <div class="small text-secondary-custom">
-                                عرض <span class="fw-bold">1-4</span> من <span class="fw-bold">120</span> منتج
-                            </div>
-
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-outline-secondary btn-sm rounded-xl" disabled>السابق</button>
-                                <button class="btn btn-outline-secondary btn-sm rounded-xl">التالي</button>
-                            </div>
-                        </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-4 py-4 text-center text-secondary-custom">
+                                        لا توجد منتجات بعد.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex align-items-center justify-content-between p-3 border-top border-soft">
+                    <div class="small text-secondary-custom">
+                        إجمالي <span class="fw-bold">{{ $products->count() }}</span> منتج/منتجات
+                        @if ($search || $categoryFilter || $stockFilter)
+                            <span class="ms-2">| تم تطبيق تصفية</span>
+                        @endif
                     </div>
+                    <div class="small text-secondary-custom">الإضافة/التعديل من نفس الصفحة.</div>
                 </div>
             </div>
-            <!-- Add Product Modal -->
+        </div>
+    </div>
+
     <div class="modal fade" id="addProductModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content rounded-2xl panel">
-                <div class="modal-header border-bottom border-soft">
-                    <h5 class="modal-title fw-black" style="font-weight: 900;">إضافة منتج جديد</h5>
-                    <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
+                <form id="productForm" method="POST" action="{{ route('dashboard.products.store') }}"
+                    enctype="multipart/form-data">
+                    @csrf
+                    <input type="hidden" name="_method" id="formMethod" value="">
+                    <div class="modal-header border-bottom border-soft">
+                        <h5 class="modal-title fw-black" id="productModalTitle" style="font-weight: 900;">إضافة منتج جديد</h5>
+                        <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
 
-                <div class="modal-body">
-                    <div class="row g-4">
-                        <!-- Images -->
-                        <div class="col-12 col-lg-4">
-                            <div class="fw-bold mb-2">صورة المنتج</div>
+                    <div class="modal-body">
+                        <div class="row g-4">
+                            <div class="col-12 col-lg-4">
+                                <div class="fw-bold mb-2">صور المنتج</div>
 
-                            <div class="dropzone">
-                                <div class="p-3 rounded-circle"
-                                    style="background: var(--surface-light); box-shadow: 0 6px 18px rgba(0,0,0,.06);">
-                                    <span class="material-symbols-outlined"
-                                        style="font-size:34px; color: var(--primary);">add_photo_alternate</span>
-                                </div>
-                                <div class="text-center">
-                                    <div class="fw-bold">اسحب الصورة هنا</div>
-                                    <div class="small text-secondary-custom">أو اضغط للتصفح</div>
-                                </div>
-                            </div>
-
-                            <div class="row g-2 mt-2">
-                                <div class="col-4">
-                                    <div class="mini-slot">
-                                        <span class="material-symbols-outlined text-secondary-custom">add</span>
+                                <label for="productImages" class="dropzone">
+                                    <div class="p-3 rounded-circle"
+                                        style="background: var(--surface-light); box-shadow: 0 6px 18px rgba(0,0,0,.06);">
+                                        <span class="material-symbols-outlined"
+                                            style="font-size:34px; color: var(--primary);">add_photo_alternate</span>
                                     </div>
+                                    <div class="text-center">
+                                        <div class="fw-bold">اسحب الصور أو اضغط للرفع</div>
+                                        <div class="small text-secondary-custom">الحد الأقصى 4 ميجا لكل صورة</div>
+                                    </div>
+                                </label>
+                                <input id="productImages" name="images[]" type="file" class="d-none" multiple accept="image/*" />
+
+                                <div class="row g-2 mt-2" id="existingImages">
+                                    <div class="col-12 text-secondary-custom small">لا توجد صور حالية.</div>
                                 </div>
-                                <div class="col-4">
-                                    <div class="mini-slot"></div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="mini-slot"></div>
+                                <div class="row g-2 mt-2" id="imagesPreview">
+                                    <div class="col-12 text-secondary-custom small">لم يتم اختيار صور جديدة بعد.</div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Details -->
-                        <div class="col-12 col-lg-8">
-                            <div class="row g-3">
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label fw-bold">اسم المنتج</label>
-                                    <input class="form-control rounded-xl border-0" style="background: var(--bg-light);"
-                                        placeholder="مثال: بوكس هدايا" />
-                                </div>
+                            <div class="col-12 col-lg-8">
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label fw-bold">اسم المنتج</label>
+                                        <input id="fieldName" name="name" class="form-control rounded-xl border-0"
+                                            style="background: var(--bg-light);" placeholder="مثال: باقة ورد حمراء"
+                                            value="{{ old('name') }}" required />
+                                    </div>
 
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label fw-bold">القسم</label>
-                                    <select class="form-select rounded-xl border-0"
-                                        style="background: var(--bg-light);">
-                                        <option>اختر القسم...</option>
-                                        <option>هدايا رجالية</option>
-                                        <option>هدايا نسائية</option>
-                                        <option>عطور</option>
-                                    </select>
-                                </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label fw-bold">القسم</label>
+                                        <select id="fieldCategory" name="category_id" class="form-select rounded-xl border-0"
+                                            style="background: var(--bg-light);">
+                                            <option value="">بدون قسم</option>
+                                            @foreach ($categories as $category)
+                                                <option value="{{ $category->id }}" @selected(old('category_id') == $category->id)>{{ $category->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
 
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label fw-bold">السعر (ر.س)</label>
-                                    <input type="number" class="form-control rounded-xl border-0"
-                                        style="background: var(--bg-light);" placeholder="0.00" />
-                                </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label fw-bold">السعر (ر.س)</label>
+                                        <input id="fieldPrice" name="price" type="number" step="0.01" min="0"
+                                            class="form-control rounded-xl border-0" style="background: var(--bg-light);"
+                                            placeholder="0.00" value="{{ old('price') }}" required />
+                                    </div>
 
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label fw-bold">تكلفة الشراء</label>
-                                    <input type="number" class="form-control rounded-xl border-0"
-                                        style="background: var(--bg-light);" placeholder="0.00" />
-                                </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label fw-bold">تكلفة الشراء (اختياري)</label>
+                                        <input id="fieldCost" name="cost" type="number" step="0.01" min="0"
+                                            class="form-control rounded-xl border-0" style="background: var(--bg-light);"
+                                            placeholder="0.00" value="{{ old('cost') }}" />
+                                    </div>
 
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label fw-bold">الكمية المتوفرة</label>
-                                    <input type="number" class="form-control rounded-xl border-0"
-                                        style="background: var(--bg-light);" placeholder="0" />
-                                </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label fw-bold">المخزون المتاح</label>
+                                        <input id="fieldStock" name="stock" type="number" min="0"
+                                            class="form-control rounded-xl border-0" style="background: var(--bg-light);"
+                                            placeholder="0" value="{{ old('stock', 0) }}" required />
+                                    </div>
 
-                                <div class="col-12">
-                                    <label class="form-label fw-bold">وصف المنتج</label>
-                                    <textarea rows="4" class="form-control rounded-xl border-0"
-                                        style="background: var(--bg-light);"
-                                        placeholder="اكتب وصفاً جذاباً للمنتج..."></textarea>
-                                </div>
+                                    <div class="col-12">
+                                        <label class="form-label fw-bold">وصف المنتج</label>
+                                        <textarea id="fieldDescription" name="description" rows="4" class="form-control rounded-xl border-0"
+                                            style="background: var(--bg-light);" placeholder="أكتب وصفاً مختصراً للمنتج...">{{ old('description') }}</textarea>
+                                    </div>
 
-                                <div class="col-12">
-                                    <div class="p-3 rounded-xl" style="background: var(--bg-light);">
-                                        <div class="form-check m-0">
-                                            <input class="form-check-input" type="checkbox" id="publishNow" />
-                                            <label class="form-check-label fw-semibold" for="publishNow">
-                                                نشر المنتج فوراً على المتجر
-                                            </label>
+                                    <div class="col-12">
+                                        <div class="p-3 rounded-xl" style="background: var(--bg-light);">
+                                            <div class="form-check m-0">
+                                                <input class="form-check-input" type="checkbox" id="publishNow" name="publish"
+                                                    value="1" @checked(old('publish', true)) />
+                                                <label class="form-check-label fw-semibold" for="publishNow">
+                                                    نشر المنتج فوراً بعد الحفظ
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- /Details -->
                     </div>
-                </div>
 
-                <div class="modal-footer border-top border-soft">
-                    <button type="button" class="btn btn-outline-secondary rounded-xl px-4" data-bs-dismiss="modal">
-                        إلغاء
-                    </button>
-                    <button type="button" class="btn text-white rounded-xl px-4"
-                        style="background: var(--primary); border:0;">
-                        <span class="material-symbols-outlined align-middle" style="font-size:20px;">save</span>
-                        <span class="fw-bold align-middle">حفظ المنتج</span>
-                    </button>
-                </div>
+                    <div class="modal-footer border-top border-soft">
+                        <button type="button" class="btn btn-outline-secondary rounded-xl px-4" data-bs-dismiss="modal">
+                            إلغاء
+                        </button>
+                        <button id="submitBtn" type="submit" class="btn text-white rounded-xl px-4"
+                            style="background: var(--primary); border:0;">
+                            <span class="material-symbols-outlined align-middle" style="font-size:20px;">save</span>
+                            <span class="fw-bold align-middle" id="submitBtnText">حفظ المنتج</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
-    @endsection
-    <style>
-        :root {
-            --primary: #eead2b;
-            --bg-light: #f8f7f6;
-            --bg-dark: #221c10;
+@endsection
 
-            --surface-light: #ffffff;
-            --surface-dark: #2d261a;
+<style>
+    :root {
+        --primary: #eead2b;
+        --bg-light: #f8f7f6;
+        --bg-dark: #221c10;
+        --surface-light: #ffffff;
+        --surface-dark: #2d261a;
+        --border-light: #e7dfcf;
+        --border-dark: #3d3220;
+        --text-light: #1b170d;
+        --text-dark: #eceae5;
+        --text2-light: #9a804c;
+        --text2-dark: #d1c2a3;
+        --r: 0.5rem;
+        --r-lg: 1rem;
+        --r-xl: 1.5rem;
+    }
 
-            --border-light: #e7dfcf;
-            --border-dark: #3d3220;
+    body {
+        font-family: "Tajawal", "Manrope", sans-serif;
+        background: var(--bg-light);
+        color: var(--text-light);
+        overflow-x: hidden;
+    }
 
-            --text-light: #1b170d;
-            --text-dark: #eceae5;
+    html[data-bs-theme="dark"] body {
+        background: var(--bg-dark);
+        color: var(--text-dark);
+    }
 
-            --text2-light: #9a804c;
-            --text2-dark: #d1c2a3;
+    .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    }
 
-            --r: 0.5rem;
-            --r-lg: 1rem;
-            --r-xl: 1.5rem;
-        }
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
 
-        body {
-            font-family: "Tajawal", "Manrope", sans-serif;
-            background: var(--bg-light);
-            color: var(--text-light);
-            overflow-x: hidden;
-        }
+    ::-webkit-scrollbar-thumb {
+        background: var(--border-light);
+        border-radius: 4px;
+    }
 
-        /* Theme */
-        html[data-bs-theme="dark"] body {
-            background: var(--bg-dark);
-            color: var(--text-dark);
-        }
+    .app-wrap {
+        min-height: 100vh;
+    }
 
-        .material-symbols-outlined {
-            font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
-        }
+    .sidebar {
+        width: 288px;
+        background: var(--surface-light);
+        border-left: 1px solid var(--border-light);
+    }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
+    html[data-bs-theme="dark"] .sidebar {
+        background: var(--surface-dark);
+        border-left-color: var(--border-dark);
+    }
 
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
+    .content-area {
+        padding: 1rem;
+    }
 
-        ::-webkit-scrollbar-thumb {
-            background: var(--border-light);
-            border-radius: 4px;
-        }
-
-        html[data-bs-theme="dark"] ::-webkit-scrollbar-thumb {
-            background: var(--border-dark);
-        }
-
-        /* Layout */
-        .app-wrap {
-            min-height: 100vh;
-        }
-
-        .sidebar {
-            width: 288px;
-            /* 72 */
-            background: var(--surface-light);
-            border-left: 1px solid var(--border-light);
-        }
-
-        html[data-bs-theme="dark"] .sidebar {
-            background: var(--surface-dark);
-            border-left-color: var(--border-dark);
-        }
-
+    @media (min-width: 768px) {
         .content-area {
-            padding: 1rem;
+            padding: 2rem;
         }
+    }
 
-        @media (min-width: 768px) {
-            .content-area {
-                padding: 2rem;
+    .rounded-xl {
+        border-radius: var(--r-lg) !important;
+    }
+
+    .rounded-2xl {
+        border-radius: var(--r-xl) !important;
+    }
+
+    .text-secondary-custom {
+        color: var(--text2-light) !important;
+    }
+
+    html[data-bs-theme="dark"] .text-secondary-custom {
+        color: var(--text2-dark) !important;
+    }
+
+    .border-soft {
+        border-color: var(--border-light) !important;
+    }
+
+    html[data-bs-theme="dark"] .border-soft {
+        border-color: var(--border-dark) !important;
+    }
+
+    .panel {
+        background: var(--surface-light);
+        border: 1px solid var(--border-light);
+    }
+
+    html[data-bs-theme="dark"] .panel {
+        background: var(--surface-dark);
+        border-color: var(--border-dark);
+    }
+
+    .search-wrap {
+        position: relative;
+    }
+
+    .search-icon {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text2-light);
+        pointer-events: none;
+    }
+
+    .search-input {
+        padding-right: 44px !important;
+        border: 0;
+        background: var(--bg-light);
+    }
+
+    .table-hover tbody tr:hover {
+        background: rgba(0, 0, 0, 0.02);
+    }
+
+    .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        display: inline-block;
+    }
+
+    .icon-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 0.75rem;
+        border: 0;
+        background: transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s ease;
+        color: var(--text2-light);
+    }
+
+    .icon-btn:hover {
+        background: rgba(0, 0, 0, 0.03);
+        color: var(--primary);
+    }
+
+    .icon-btn.danger:hover {
+        color: #ef4444;
+    }
+
+    .thumb {
+        width: 48px;
+        height: 48px;
+        border-radius: 0.75rem;
+        background-size: cover;
+        background-position: center;
+        flex: 0 0 auto;
+        background-color: #f1f1f1;
+    }
+
+    .thumb.thumb-mini {
+        width: 32px;
+        height: 32px;
+    }
+
+    .thumb.thumb-mini.more {
+        background: var(--bg-light);
+        border: 1px dashed var(--border-light);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: var(--text2-light);
+    }
+
+    .dropzone {
+        border: 2px dashed var(--border-light);
+        background: var(--bg-light);
+        border-radius: var(--r-lg);
+        padding: 1rem;
+        min-height: 220px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.75rem;
+        cursor: pointer;
+        transition: 0.2s ease;
+        text-align: center;
+    }
+
+    .dropzone:hover {
+        border-color: rgba(238, 173, 43, 0.5);
+        background: rgba(238, 173, 43, 0.04);
+    }
+
+    .mini-slot {
+        border: 1px solid var(--border-light);
+        background: var(--bg-light);
+        border-radius: 0.75rem;
+        aspect-ratio: 1/1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .preview-slot {
+        background-size: cover;
+        background-position: center;
+        border: 0;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .remove-btn {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        border: 0;
+        background: rgba(0, 0, 0, 0.45);
+        color: #fff;
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        cursor: pointer;
+        transition: 0.15s ease;
+    }
+
+    .remove-btn:hover {
+        background: rgba(0, 0, 0, 0.65);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('productForm');
+        const filtersForm = document.getElementById('filtersForm');
+        const searchInput = document.querySelector('input[name="q"]');
+        const categorySelect = document.querySelector('select[name="category_id"]');
+        const stockSelect = document.querySelector('select[name="stock_status"]');
+        const methodInput = document.getElementById('formMethod');
+        const modalTitle = document.getElementById('productModalTitle');
+        const submitBtnText = document.getElementById('submitBtnText');
+        const input = document.getElementById('productImages');
+        const preview = document.getElementById('imagesPreview');
+        const existing = document.getElementById('existingImages');
+        const fieldName = document.getElementById('fieldName');
+        const fieldCategory = document.getElementById('fieldCategory');
+        const fieldPrice = document.getElementById('fieldPrice');
+        const fieldCost = document.getElementById('fieldCost');
+        const fieldStock = document.getElementById('fieldStock');
+        const fieldDescription = document.getElementById('fieldDescription');
+        const publishNow = document.getElementById('publishNow');
+        const createBtn = document.getElementById('openCreateProduct');
+        let selectedFiles = [];
+        let searchTimeout;
+
+        const submitFilters = () => {
+            filtersForm?.submit();
+        };
+
+        const resetForm = () => {
+            form.action = "{{ route('dashboard.products.store') }}";
+            methodInput.value = '';
+            modalTitle.textContent = 'إضافة منتج جديد';
+            submitBtnText.textContent = 'حفظ المنتج';
+            fieldName.value = '';
+            fieldCategory.value = '';
+            fieldPrice.value = '';
+            fieldCost.value = '';
+            fieldStock.value = 0;
+            fieldDescription.value = '';
+            publishNow.checked = true;
+            selectedFiles = [];
+            renderPreviews();
+            renderExisting([]);
+        };
+
+        const syncInputFiles = () => {
+            const dt = new DataTransfer();
+            selectedFiles.forEach((file) => dt.items.add(file));
+            input.files = dt.files;
+        };
+
+        const renderExisting = (images) => {
+            existing.innerHTML = '';
+            if (!images || images.length === 0) {
+                existing.innerHTML = '<div class="col-12 text-secondary-custom small">لا توجد صور حالية.</div>';
+                return;
             }
-        }
+            images.forEach((url) => {
+                const col = document.createElement('div');
+                col.className = 'col-4';
+                col.innerHTML = `<div class="mini-slot preview-slot" style="background-image:url('${url}');"></div>`;
+                existing.appendChild(col);
+            });
+        };
 
-        .rounded-xl {
-            border-radius: var(--r-lg) !important;
-        }
+        const renderPreviews = () => {
+            preview.innerHTML = '';
+            if (!selectedFiles.length) {
+                preview.innerHTML = '<div class="col-12 text-secondary-custom small">لم يتم اختيار صور جديدة بعد.</div>';
+                return;
+            }
+            selectedFiles.forEach((file, index) => {
+                if (!file.type.startsWith('image/')) return;
+                const url = URL.createObjectURL(file);
+                const col = document.createElement('div');
+                col.className = 'col-4';
+                col.innerHTML = `
+                    <div class="mini-slot preview-slot" style="background-image:url('${url}');">
+                        <button type="button" class="remove-btn" data-index="${index}" title="حذف">
+                            <span class="material-symbols-outlined" style="font-size:16px;">close</span>
+                        </button>
+                    </div>`;
+                preview.appendChild(col);
+            });
+        };
 
-        .rounded-2xl {
-            border-radius: var(--r-xl) !important;
-        }
+        input?.addEventListener('change', () => {
+            const newFiles = Array.from(input.files || []);
+            selectedFiles = selectedFiles.concat(newFiles);
+            syncInputFiles();
+            renderPreviews();
+        });
 
-        .text-secondary-custom {
-            color: var(--text2-light) !important;
-        }
+        preview?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.remove-btn');
+            if (!btn) return;
+            const idx = Number(btn.dataset.index);
+            selectedFiles = selectedFiles.filter((_, i) => i !== idx);
+            syncInputFiles();
+            renderPreviews();
+        });
 
-        html[data-bs-theme="dark"] .text-secondary-custom {
-            color: var(--text2-dark) !important;
-        }
+        categorySelect?.addEventListener('change', submitFilters);
+        stockSelect?.addEventListener('change', submitFilters);
+        searchInput?.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(submitFilters, 450);
+        });
 
-        .border-soft {
-            border-color: var(--border-light) !important;
-        }
+        document.querySelectorAll('.edit-product').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                form.action = btn.dataset.action;
+                methodInput.value = 'PATCH';
+                modalTitle.textContent = 'تعديل المنتج';
+                submitBtnText.textContent = 'تحديث المنتج';
+                fieldName.value = btn.dataset.name || '';
+                fieldCategory.value = btn.dataset.categoryId || '';
+                fieldPrice.value = btn.dataset.price || 0;
+                fieldCost.value = btn.dataset.cost || '';
+                fieldStock.value = btn.dataset.stock || 0;
+                fieldDescription.value = btn.dataset.description || '';
+                publishNow.checked = btn.dataset.published === '1';
+                selectedFiles = [];
+                syncInputFiles();
+                renderPreviews();
+                try {
+                    const imgs = JSON.parse(btn.dataset.images || '[]');
+                    renderExisting(imgs);
+                } catch {
+                    renderExisting([]);
+                }
+            });
+        });
 
-        html[data-bs-theme="dark"] .border-soft {
-            border-color: var(--border-dark) !important;
-        }
-
-        /* Sidebar Links */
-        .nav-link-custom {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.85rem 1rem;
-            border-radius: var(--r-lg);
-            text-decoration: none;
-            color: var(--text2-light);
-            transition: 0.2s ease;
-            font-weight: 600;
-        }
-
-        html[data-bs-theme="dark"] .nav-link-custom {
-            color: var(--text2-dark);
-        }
-
-        .nav-link-custom:hover {
-            background: rgba(0, 0, 0, 0.03);
-            color: var(--primary);
-        }
-
-        html[data-bs-theme="dark"] .nav-link-custom:hover {
-            background: rgba(255, 255, 255, 0.04);
-        }
-
-        .nav-link-custom.active {
-            background: rgba(238, 173, 43, 0.1);
-            color: var(--primary);
-            font-weight: 800;
-        }
-
-        /* Cards */
-        .panel {
-            background: var(--surface-light);
-            border: 1px solid var(--border-light);
-        }
-
-        html[data-bs-theme="dark"] .panel {
-            background: var(--surface-dark);
-            border-color: var(--border-dark);
-        }
-
-        /* Search input icon */
-        .search-wrap {
-            position: relative;
-        }
-
-        .search-icon {
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text2-light);
-            pointer-events: none;
-        }
-
-        html[data-bs-theme="dark"] .search-icon {
-            color: var(--text2-dark);
-        }
-
-        .search-input {
-            padding-right: 44px !important;
-            border: 0;
-            background: var(--bg-light);
-        }
-
-        html[data-bs-theme="dark"] .search-input {
-            background: var(--bg-dark);
-            color: var(--text-dark);
-        }
-
-        /* Table hover */
-        .table-hover tbody tr:hover {
-            background: rgba(0, 0, 0, 0.02);
-        }
-
-        html[data-bs-theme="dark"] .table-hover tbody tr:hover {
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        /* Badge dots */
-        .dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 999px;
-            display: inline-block;
-        }
-
-        /* Small icon buttons */
-        .icon-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 0.75rem;
-            border: 0;
-            background: transparent;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: 0.2s ease;
-            color: var(--text2-light);
-        }
-
-        html[data-bs-theme="dark"] .icon-btn {
-            color: var(--text2-dark);
-        }
-
-        .icon-btn:hover {
-            background: rgba(0, 0, 0, 0.03);
-            color: var(--primary);
-        }
-
-        html[data-bs-theme="dark"] .icon-btn:hover {
-            background: rgba(255, 255, 255, 0.04);
-        }
-
-        .icon-btn.danger:hover {
-            color: #ef4444;
-        }
-
-        /* Product thumb */
-        .thumb {
-            width: 48px;
-            height: 48px;
-            border-radius: 0.75rem;
-            background-size: cover;
-            background-position: center;
-            flex: 0 0 auto;
-            background-color: #f1f1f1;
-        }
-
-        html[data-bs-theme="dark"] .thumb {
-            background-color: rgba(255, 255, 255, 0.06);
-        }
-
-        /* Modal dropzone style */
-        .dropzone {
-            border: 2px dashed var(--border-light);
-            background: var(--bg-light);
-            border-radius: var(--r-lg);
-            padding: 1rem;
-            min-height: 220px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 0.75rem;
-            cursor: pointer;
-            transition: 0.2s ease;
-        }
-
-        html[data-bs-theme="dark"] .dropzone {
-            border-color: var(--border-dark);
-            background: var(--bg-dark);
-        }
-
-        .dropzone:hover {
-            border-color: rgba(238, 173, 43, 0.5);
-            background: rgba(238, 173, 43, 0.04);
-        }
-
-        .mini-slot {
-            border: 1px solid var(--border-light);
-            background: var(--bg-light);
-            border-radius: 0.75rem;
-            aspect-ratio: 1/1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        html[data-bs-theme="dark"] .mini-slot {
-            border-color: var(--border-dark);
-            background: var(--bg-dark);
-        }
-    </style>
+        createBtn?.addEventListener('click', () => resetForm());
+    });
+</script>
