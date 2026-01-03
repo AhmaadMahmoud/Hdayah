@@ -1,430 +1,435 @@
-@extends('frontend.layouts.master')
-
-
-
-
-
-
-
-
-
-
-
-
+﻿@extends('frontend.layouts.master')
 
 @section('content')
-    <div class="container-fluid py-4" style="max-width:1440px;">
+    @php
+        // لو $products Pagination استخدم total() بدل count()
+        $totalProducts = method_exists($products, 'total') ? $products->total() : $products->count();
 
-      <!-- Breadcrumb + heading -->
-      <div class="mb-4">
-        <nav class="crumb d-flex flex-wrap gap-2 mb-3 small fw-semibold">
-          <a href="#">الرئيسية</a>
-          <span class="text-secondary-custom">/</span>
-          <a href="#">الهدايا</a>
-          <span class="text-secondary-custom">/</span>
-          <span class="fw-bold">هدايا أعياد الميلاد</span>
-        </nav>
+        // قراءة الفلاتر من Query String
+        $selectedPrices = (array) request()->input('price', []);
+        $selectedOccasions = (array) request()->input('occasion', []);
+        $selectedTypes = (array) request()->input('type', []);
+        $sort = request()->input('sort', 'relevance');
 
-        <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3">
-          <div>
-            <h2 class="fw-black mb-2" style="font-weight:900; font-size:clamp(1.75rem, 2.6vw, 2.4rem);">
-              هدايا أعياد الميلاد
-            </h2>
-            <p class="m-0 text-secondary-custom fs-5" style="max-width:720px;">
-              تشكيلة مميزة من الهدايا المختارة بعناية لتناسب أحبائك في يومهم المميز.
-            </p>
-          </div>
+        // خيارات ثابتة (تقدر تخليها ديناميكية من DB بعدين)
+        $priceOptions = [
+            'under-100' => 'أقل من ١٠٠ ر.س',
+            '100-300' => '١٠٠ - ٣٠٠ ر.س',
+            '300-500' => '٣٠٠ - ٥٠٠ ر.س',
+            'over-500' => 'أكثر من ٥٠٠ ر.س',
+        ];
 
-          <div class="dropdown">
-            <button class="sort-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-              <span class="material-symbols-outlined" style="font-size:18px;">sort</span>
-              <span>ترتيب حسب: الأكثر ملاءمة</span>
-            </button>
-            <ul class="dropdown-menu rounded-lg">
-              <li><a class="dropdown-item" href="#">الأكثر ملاءمة</a></li>
-              <li><a class="dropdown-item" href="#">الأحدث</a></li>
-              <li><a class="dropdown-item" href="#">الأقل سعرًا</a></li>
-              <li><a class="dropdown-item" href="#">الأعلى سعرًا</a></li>
-            </ul>
-          </div>
+        $occasionOptions = [
+            'birthday' => 'أعياد الميلاد',
+            'anniversary' => 'ذكرى زواج',
+            'graduation' => 'تخرج',
+            'newborn' => 'مولود جديد',
+        ];
+
+        $typeOptions = [
+            'chocolate' => 'شوكولاتة',
+            'perfume' => 'عطور',
+            'teddy' => 'دمى',
+            'watch' => 'ساعات',
+        ];
+
+        // عشان نعرض Chips بشكل لطيف
+        $chipLabels = [];
+        foreach ($selectedPrices as $v) {
+            if (isset($priceOptions[$v])) {
+                $chipLabels[] = ['key' => 'price', 'val' => $v, 'label' => $priceOptions[$v]];
+            }
+        }
+        foreach ($selectedOccasions as $v) {
+            if (isset($occasionOptions[$v])) {
+                $chipLabels[] = ['key' => 'occasion', 'val' => $v, 'label' => $occasionOptions[$v]];
+            }
+        }
+        foreach ($selectedTypes as $v) {
+            if (isset($typeOptions[$v])) {
+                $chipLabels[] = ['key' => 'type', 'val' => $v, 'label' => $typeOptions[$v]];
+            }
+        }
+
+        // مساعد: يبني لينك يشيل Chip واحد
+        $removeFilterUrl = function ($key, $val) {
+            $q = request()->query();
+            $arr = (array) data_get($q, $key, []);
+            $arr = array_values(array_filter($arr, fn($x) => $x !== $val));
+            if (count($arr)) {
+                $q[$key] = $arr;
+            } else {
+                unset($q[$key]);
+            }
+            return url()->current() . '?' . http_build_query($q);
+        };
+
+        // مساعد: لينك مسح كل الفلاتر
+        $clearAllUrl = url()->current();
+    @endphp
+
+    <style>
+        :root {
+            --primary: #ee2b5b;
+            --primary-soft: #f3e7ea;
+            --text-secondary: #9a4c5f;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, .04);
+            --shadow-hover: 0 8px 24px rgba(238, 43, 91, .12);
+        }
+
+        .text-secondary-2 {
+            color: var(--text-secondary) !important;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            height: 32px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: rgba(238, 43, 91, .10);
+            color: var(--primary);
+            font-weight: 800;
+            font-size: .9rem;
+            text-decoration: none;
+            transition: .2s ease;
+        }
+
+        .pill:hover {
+            background: rgba(238, 43, 91, .16);
+            color: var(--primary);
+        }
+
+        .sidebar-card {
+            border-radius: 1.5rem;
+            background: #fff;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+        }
+
+        .sidebar-section {
+            border-top: 1px solid #f1f5f9;
+            padding: 1rem 0;
+        }
+
+        .card-product {
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid transparent;
+            box-shadow: var(--shadow-sm);
+            transition: .3s ease;
+            background: #fff;
+        }
+
+        .card-product:hover {
+            border-color: rgba(238, 43, 91, .20);
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-2px);
+        }
+
+        .product-media {
+            position: relative;
+            height: 180px;
+            background: #f3f4f6;
+            overflow: hidden;
+            border-radius: 1rem;
+        }
+
+        .product-img {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            transition: transform .7s ease;
+        }
+
+        .card-product:hover .product-img {
+            transform: scale(1.05);
+        }
+
+        .btn-choose {
+            height: 40px;
+            border-radius: 999px;
+            font-weight: 900;
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        .btn-choose:hover {
+            background: rgba(238, 43, 91, .9);
+            border-color: rgba(238, 43, 91, .9);
+            color: #fff;
+        }
+    </style>
+
+    <div class="container-fluid py-5" style="max-width:1280px;">
+
+        <!-- Heading -->
+        <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
+            <div class="text-end">
+                <h1 class="fw-bolder m-0" style="font-weight:900;">{{ $category->name }}</h1>
+                <p class="text-secondary-2 fs-5 m-0">عدد المنتجات: {{ $totalProducts }}</p>
+            </div>
+
+            <!-- Sort -->
+            <form method="GET" class="dropdown">
+                @foreach (request()->except('sort') as $k => $v)
+                    @if (is_array($v))
+                        @foreach ($v as $vv)
+                            <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
+                        @endforeach
+                    @else
+                        <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+                    @endif
+                @endforeach
+
+                <button class="btn bg-white d-inline-flex align-items-center gap-2 shadow-sm"
+                    style="border-radius:999px;height:40px;border:1px solid #e5e7eb;" data-bs-toggle="dropdown"
+                    type="button">
+                    <span class="material-symbols-outlined" style="font-size:20px;">sort</span>
+                    <span class="fw-medium">ترتيب حسب</span>
+                    <span class="material-symbols-outlined" style="font-size:20px;">expand_more</span>
+                </button>
+
+                <ul class="dropdown-menu text-end">
+                    <li><button class="dropdown-item" name="sort" value="relevance">الأكثر ملاءمة</button></li>
+                    <li><button class="dropdown-item" name="sort" value="price_asc">الأقل سعراً</button></li>
+                    <li><button class="dropdown-item" name="sort" value="price_desc">الأعلى سعراً</button></li>
+                    <li><button class="dropdown-item" name="sort" value="latest">الأحدث</button></li>
+                </ul>
+            </form>
         </div>
-      </div>
 
-      <div class="row g-4 align-items-start">
+        <div class="row g-4">
+            <!-- Sidebar Filters -->
+            <aside class="col-12 col-lg-3">
 
-        <!-- Sidebar -->
-        <aside class="col-12 col-lg-3">
+                <!-- Mobile Filter Button -->
+                <button class="btn w-100 d-lg-none bg-white shadow-sm d-flex align-items-center justify-content-between"
+                    style="border-radius:1rem;border:1px solid #e5e7eb;" data-bs-toggle="offcanvas"
+                    data-bs-target="#filtersOffcanvas">
+                    <span class="fw-bold d-inline-flex align-items-center gap-2">
+                        <span class="material-symbols-outlined">filter_list</span> تصفية النتائج
+                    </span>
+                    <span class="material-symbols-outlined">expand_more</span>
+                </button>
 
-          <!-- Mobile filter button -->
-          <button class="btn w-100 d-lg-none rounded-xl text-start d-flex align-items-center justify-content-between"
-                  data-bs-toggle="offcanvas" data-bs-target="#filtersCanvas">
-            <span class="fw-bold d-flex align-items-center gap-2">
-              <span class="material-symbols-outlined">filter_list</span>
-              تصفية النتائج
-            </span>
-            <span class="material-symbols-outlined">expand_more</span>
-          </button>
+                <!-- Desktop Filters -->
+                <div class="sidebar-card p-4 d-none d-lg-block">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h3 class="h5 fw-bold mb-0">تصفية النتائج</h3>
+                        <a class="btn btn-link p-0 fw-bold text-decoration-none"
+                            style="color:var(--primary);font-size:.8rem;" href="{{ $clearAllUrl }}">
+                            مسح الكل
+                        </a>
+                    </div>
 
-          <!-- Desktop filters -->
-          <div class="filter-card d-none d-lg-block">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <h3 class="m-0 filter-title fs-5">تصفية النتائج</h3>
-              <button class="btn btn-link p-0 fw-bold" style="color:var(--primary); font-size:.8rem;">مسح الكل</button>
-            </div>
+                    <form method="GET">
+                        <!-- keep sort -->
+                        @if ($sort)
+                            <input type="hidden" name="sort" value="{{ $sort }}">
+                        @endif
 
-            <div class="filter-section pt-0 mt-0" style="border-top:0;">
-              <button class="btn w-100 text-start d-flex align-items-center justify-content-between p-0 mb-3">
-                <span class="fw-bold small">نطاق السعر</span>
-                <span class="material-symbols-outlined text-secondary">remove</span>
-              </button>
+                        <!-- Price -->
+                        <div class="sidebar-section pt-0 border-0">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-bold">نطاق السعر</span>
+                                <span class="material-symbols-outlined text-secondary">remove</span>
+                            </div>
+                            <div class="vstack gap-2">
+                                @foreach ($priceOptions as $val => $label)
+                                    <label class="form-check d-flex align-items-center gap-2 m-0">
+                                        <input class="form-check-input mt-0" type="checkbox" name="price[]"
+                                            value="{{ $val }}"
+                                            {{ in_array($val, $selectedPrices) ? 'checked' : '' }}>
+                                        <span class="text-secondary">{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
 
-              <div class="vstack gap-2">
-                <label class="form-check d-flex align-items-center gap-2 m-0">
-                  <input class="form-check-input mt-0" type="checkbox">
-                  <span class="small text-secondary-custom">أقل من ١٠٠ ر.س</span>
-                </label>
+                        <!-- Occasion -->
+                        <div class="sidebar-section">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-bold">المناسبة</span>
+                                <span class="material-symbols-outlined text-secondary">remove</span>
+                            </div>
+                            <div class="vstack gap-2">
+                                @foreach ($occasionOptions as $val => $label)
+                                    <label class="form-check d-flex align-items-center gap-2 m-0">
+                                        <input class="form-check-input mt-0" type="checkbox" name="occasion[]"
+                                            value="{{ $val }}"
+                                            {{ in_array($val, $selectedOccasions) ? 'checked' : '' }}>
+                                        <span class="text-secondary">{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
 
-                <label class="form-check d-flex align-items-center gap-2 m-0">
-                  <input class="form-check-input mt-0" type="checkbox" checked>
-                  <span class="small text-secondary-custom">١٠٠ - ٣٠٠ ر.س</span>
-                </label>
+                        <!-- Type -->
+                        <div class="sidebar-section">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-bold">نوع الهدية</span>
+                                <span class="material-symbols-outlined text-secondary">add</span>
+                            </div>
+                            <div class="vstack gap-2">
+                                @foreach ($typeOptions as $val => $label)
+                                    <label class="form-check d-flex align-items-center gap-2 m-0">
+                                        <input class="form-check-input mt-0" type="checkbox" name="type[]"
+                                            value="{{ $val }}"
+                                            {{ in_array($val, $selectedTypes) ? 'checked' : '' }}>
+                                        <span class="text-secondary">{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
 
-                <label class="form-check d-flex align-items-center gap-2 m-0">
-                  <input class="form-check-input mt-0" type="checkbox">
-                  <span class="small text-secondary-custom">٣٠٠ - ٥٠٠ ر.س</span>
-                </label>
+                        <button class="btn w-100 mt-3 btn-choose" style="height:44px;">تطبيق</button>
+                    </form>
+                </div>
+            </aside>
 
-                <label class="form-check d-flex align-items-center gap-2 m-0">
-                  <input class="form-check-input mt-0" type="checkbox">
-                  <span class="small text-secondary-custom">أكثر من ٥٠٠ ر.س</span>
-                </label>
-              </div>
-            </div>
+            <!-- Products Grid -->
+            <section class="col-12 col-lg-9">
 
-            <div class="filter-section">
-              <button class="btn w-100 text-start d-flex align-items-center justify-content-between p-0 mb-3">
-                <span class="fw-bold small">المناسبة</span>
-                <span class="material-symbols-outlined text-secondary">remove</span>
-              </button>
+                <!-- Chips -->
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    @foreach ($chipLabels as $chip)
+                        <a class="pill" href="{{ $removeFilterUrl($chip['key'], $chip['val']) }}">
+                            <span>{{ $chip['label'] }}</span>
+                            <span class="material-symbols-outlined" style="font-size:18px;">close</span>
+                        </a>
+                    @endforeach
 
-              <div class="vstack gap-2">
-                <label class="form-check d-flex align-items-center gap-2 m-0">
-                  <input class="form-check-input mt-0" type="checkbox">
-                  <span class="small text-secondary-custom">أعياد الميلاد</span>
-                </label>
-
-                <label class="form-check d-flex align-items-center gap-2 m-0">
-                  <input class="form-check-input mt-0" type="checkbox">
-                  <span class="small text-secondary-custom">ذكرى زواج</span>
-                </label>
-
-                <label class="form-check d-flex align-items-center gap-2 m-0">
-                  <input class="form-check-input mt-0" type="checkbox">
-                  <span class="small text-secondary-custom">تخرج</span>
-                </label>
-
-                <label class="form-check d-flex align-items-center gap-2 m-0">
-                  <input class="form-check-input mt-0" type="checkbox">
-                  <span class="small text-secondary-custom">مولود جديد</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="filter-section">
-              <button class="btn w-100 text-start d-flex align-items-center justify-content-between p-0">
-                <span class="fw-bold small">نوع الهدية</span>
-                <span class="material-symbols-outlined text-secondary">add</span>
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        <!-- Products -->
-        <section class="col-12 col-lg-9">
-
-          <!-- Active chips -->
-          <div class="d-flex flex-wrap gap-2 mb-3">
-            <div class="chip">
-              <span>١٠٠ - ٣٠٠ ر.س</span>
-              <span class="material-symbols-outlined" style="font-size:16px;">close</span>
-            </div>
-            <div class="chip">
-              <span>أعياد الميلاد</span>
-              <span class="material-symbols-outlined" style="font-size:16px;">close</span>
-            </div>
-            <button class="btn btn-link p-0 small text-secondary-custom" style="text-decoration: underline; text-decoration-style:dotted;">
-              مسح جميع المرشحات
-            </button>
-          </div>
-
-          <!-- Grid -->
-          <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-3">
-
-            <!-- Card 1 -->
-            <div class="col">
-              <div class="p-card">
-                <div class="p-media">
-                  <div class="p-badge">الأكثر مبيعاً</div>
-                  <div class="p-bg" style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuB8r7yLPjCx0XZIiypyU21Am28bp74ffBwA8umraajZviI-B8gDH7Al9tFUtQFQC3I108taa3CH9rys4NslXe0O6qIGsEAUKaebOsiyUva-K9gyGMCHnBM1FVM-4N8WNfum30Hz2TGhNzgMYZC7FmGkbABlO45opGXqiXKfpV0KOwgw6T0dr-FdqnM6CRC5aKpmvV0K_C0Z35bWS4yqieA5Ad44tO-mwFOzgjR0VG-apZ9Hfytsbrh3_tv8SgZxuShUcx7J1dShmC4');"></div>
-
-                  <div class="p-overlay">
-                    <a href="{{ route('products.index') }}" class="quick-btn" type="button">
-                      <span class="material-symbols-outlined">visibility</span>
-                    </a>
-                    <button class="quick-btn" type="button">
-                      <span class="material-symbols-outlined">favorite</span>
-                    </button>
-                  </div>
+                    @if (count($chipLabels))
+                        <a class="btn btn-link p-0 text-secondary-2" style="font-size:.85rem;text-decoration-style:dotted;"
+                            href="{{ $clearAllUrl }}">
+                            مسح جميع المرشحات
+                        </a>
+                    @endif
                 </div>
 
-                <div class="p-3">
-                  <h3 class="m-0 fw-bold fs-5">باقة السعادة الوردية</h3>
+                @if ($products->count())
+                    <div class="row g-3 g-md-4 row-cols-2 row-cols-md-3 row-cols-lg-4">
 
-                  <div class="d-flex align-items-end justify-content-between mt-2">
-                    <div class="fw-bold" style="color:var(--primary); font-size:1.25rem;">١٥٠ ر.س</div>
-                    <div class="old-price">١٨٠ ر.س</div>
-                  </div>
+                        @foreach ($products as $product)
+                            @php
+                                $primary = $product->primary_image;
+                                $bg = $primary
+                                    ? "url('" . asset('storage/' . $primary->path) . "')"
+                                    : 'linear-gradient(135deg,#fef3c7,#ffe4e6)';
+                            @endphp
 
-                  <button class="btn btn-primary w-100 rounded-pill fw-bold mt-3 d-flex align-items-center justify-content-center gap-2">
-                    <span>اختر الهدية</span>
-                    <span class="material-symbols-outlined" style="font-size:18px;">arrow_back</span>
-                  </button>
-                </div>
-              </div>
+                            <div class="col">
+                                <a href="{{ route('products.show', $product) }}" class="text-decoration-none text-dark">
+                                    <div class="card-product p-3 h-100">
+                                        <div class="product-media mb-3">
+                                            <div class="product-img" style="background-image: {{ $bg }};">
+                                            </div>
+                                        </div>
+
+                                        <div class="text-end">
+                                            <div class="fw-bold" style="color:inherit; line-height:1.25;">
+                                                {{ $product->name }}
+                                            </div>
+                                            <div class="mt-1" style="color: var(--primary); font-weight:900;">
+                                                {{ number_format($product->price, 2) }} ر.س
+                                            </div>
+
+                                            <button
+                                                class="btn btn-choose w-100 mt-3 d-inline-flex align-items-center justify-content-center gap-2"
+                                                type="button">
+                                                <span>اختر الهدية</span>
+                                                <span class="material-symbols-outlined">arrow_back</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        @endforeach
+
+                    </div>
+
+                    {{-- Pagination لو Paginate --}}
+                    @if (method_exists($products, 'links'))
+                        <div class="mt-5 d-flex justify-content-center">
+                            {{ $products->withQueryString()->links() }}
+                        </div>
+                    @endif
+                @else
+                    <div class="text-center text-secondary-2 py-5">لا توجد منتجات داخل هذا التصنيف حالياً.</div>
+                @endif
+
+            </section>
+        </div>
+    </div>
+
+    <!-- Offcanvas Filters (Mobile) -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="filtersOffcanvas">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title fw-bold">تصفية النتائج</h5>
+            <button type="button" class="btn-close ms-0" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="sidebar-card p-3">
+                <form method="GET">
+                    @if ($sort)
+                        <input type="hidden" name="sort" value="{{ $sort }}">
+                    @endif
+
+                    <div class="mb-3">
+                        <div class="fw-bold mb-2">نطاق السعر</div>
+                        <div class="vstack gap-2">
+                            @foreach ($priceOptions as $val => $label)
+                                <label class="form-check d-flex align-items-center gap-2 m-0">
+                                    <input class="form-check-input mt-0" type="checkbox" name="price[]"
+                                        value="{{ $val }}"
+                                        {{ in_array($val, $selectedPrices) ? 'checked' : '' }}>
+                                    <span class="text-secondary">{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <div class="fw-bold mb-2">المناسبة</div>
+                        <div class="vstack gap-2">
+                            @foreach ($occasionOptions as $val => $label)
+                                <label class="form-check d-flex align-items-center gap-2 m-0">
+                                    <input class="form-check-input mt-0" type="checkbox" name="occasion[]"
+                                        value="{{ $val }}"
+                                        {{ in_array($val, $selectedOccasions) ? 'checked' : '' }}>
+                                    <span class="text-secondary">{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <div class="fw-bold mb-2">نوع الهدية</div>
+                        <div class="vstack gap-2">
+                            @foreach ($typeOptions as $val => $label)
+                                <label class="form-check d-flex align-items-center gap-2 m-0">
+                                    <input class="form-check-input mt-0" type="checkbox" name="type[]"
+                                        value="{{ $val }}"
+                                        {{ in_array($val, $selectedTypes) ? 'checked' : '' }}>
+                                    <span class="text-secondary">{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <button class="btn btn-choose w-100" style="height:44px;">تطبيق</button>
+                    <a href="{{ $clearAllUrl }}" class="btn btn-light w-100 mt-2" style="border-radius:999px;">مسح
+                        الكل</a>
+                </form>
             </div>
-
-            <!-- Card 2 -->
-            <div class="col">
-              <div class="p-card">
-                <div class="p-media">
-                  <div class="p-bg" style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuDRI2A7dCXSyYueaScJVNUbjEp-9wYVR3DeiK9X-uoUBE00qPSX6iLHfU1Efh1IMTr_yXgbFVVClBHmy80F1cXjIvbGt75RaY1zjDuBa1zUVp6sPNRWe6Pw9KoVtsPx5J4y7YfvQ4MA49h1Ei5Uetv1NegIsay5ITF3EGmTbMWqzebwFAdS6Y9D_RLCjky3vp7FxFCJjklJyTM2xu21EeMIad0g1XkTtUTslKLm6uGrWvHp9ASRRcAF8aCXdbKdQM5KP5qCXwGQ83U');"></div>
-                  <div class="p-overlay">
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">visibility</span></button>
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">favorite</span></button>
-                  </div>
-                </div>
-
-                <div class="p-3">
-                  <h3 class="m-0 fw-bold fs-5">صندوق المفاجآت الفاخر</h3>
-                  <div class="d-flex align-items-end justify-content-between mt-2">
-                    <div class="fw-bold" style="color:var(--primary); font-size:1.25rem;">٢٢٠ ر.س</div>
-                  </div>
-
-                  <button class="btn btn-primary w-100 rounded-pill fw-bold mt-3 d-flex align-items-center justify-content-center gap-2">
-                    <span>اختر الهدية</span>
-                    <span class="material-symbols-outlined" style="font-size:18px;">arrow_back</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card 3 -->
-            <div class="col">
-              <div class="p-card">
-                <div class="p-media">
-                  <div class="p-badge dark">جديد</div>
-                  <div class="p-bg" style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuDByXdxNBLbnBI2lXAc6cYyx2EL0kBUojVs5i1nJJAHPZj9S0sBWlNmMcJkL3WcIlMzFfmnfOO1jQ6S2wYMJQaGdISFxV-jnbgxYDryX1ivx2ZnGll708VVEzwEdNJEXZWWiZdmaqVWq7TkrO0qK83aay_WkIzUx5f7l4MmxNuzGgsP0NI7zp_oeYQwHn5JJyVCyAFheWifCxht6HKVF3OpMZQBkdBwRfy16SVcT3ttbFZZnlk6Zfmxu2SU776FX6PU0Qc_zdOUgoU');"></div>
-                  <div class="p-overlay">
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">visibility</span></button>
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">favorite</span></button>
-                  </div>
-                </div>
-
-                <div class="p-3">
-                  <h3 class="m-0 fw-bold fs-5">مجموعة الشوكولاتة البلجيكية</h3>
-                  <div class="d-flex align-items-end justify-content-between mt-2">
-                    <div class="fw-bold" style="color:var(--primary); font-size:1.25rem;">١٨٠ ر.س</div>
-                  </div>
-
-                  <button class="btn btn-primary w-100 rounded-pill fw-bold mt-3 d-flex align-items-center justify-content-center gap-2">
-                    <span>اختر الهدية</span>
-                    <span class="material-symbols-outlined" style="font-size:18px;">arrow_back</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card 4 -->
-            <div class="col">
-              <div class="p-card">
-                <div class="p-media">
-                  <div class="p-bg" style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuD5qC-QNfmoDMZ7OMhELkFpYofufLV6iI_blXQgeyQrnzSmOtE3m0tPg3t8NTsI_yh56s68wPge7O9kWRciYnjHIDl5p_ZZ5KmJCe1zdObZE5jHA4fSx7YR2VIWqPD5YQsBneBu-MJwOXZNaw0NneGDRtj8tXvBLWuAeBzhC5nmGAMTe72PRrLcpBvz7TAJ5lShuHdTigkQS6U_-V4cXHqM2K2suLQGDfju682T6wLA-KeYJETXf2rulXie6sdyv_i8rM3infg5dYw');"></div>
-                  <div class="p-overlay">
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">visibility</span></button>
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">favorite</span></button>
-                  </div>
-                </div>
-
-                <div class="p-3">
-                  <h3 class="m-0 fw-bold fs-5">دمية الدب المحب</h3>
-                  <div class="d-flex align-items-end justify-content-between mt-2">
-                    <div class="fw-bold" style="color:var(--primary); font-size:1.25rem;">٩٥ ر.س</div>
-                  </div>
-
-                  <button class="btn btn-primary w-100 rounded-pill fw-bold mt-3 d-flex align-items-center justify-content-center gap-2">
-                    <span>اختر الهدية</span>
-                    <span class="material-symbols-outlined" style="font-size:18px;">arrow_back</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card 5 -->
-            <div class="col">
-              <div class="p-card">
-                <div class="p-media">
-                  <div class="p-badge">عرض خاص</div>
-                  <div class="p-bg" style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuDSlx3_JXFwBPwMPu-oWppKbnynO1vpTWWuHokANTYoS3N5a4v67mOz73SmLSe-xqthB23WF7vdIF4sbEzmUZnfi7VUI0ffGvJx0d-V3XP7rQ3cIepyzY2F7eo0i2X-VcBsKF-Ukz5wPOz3YkCjJiKPybdRHAa0UyLXUHiFEFIG3FM6ncRZ22aasToor7z9cbxj8SCu3HXQ5LKSMJUXIfys6_40u2I__MhnrMjFnXf2V3cFi1SW8THcMMyVueRHkXP7sKpC4YNvzf4');"></div>
-                  <div class="p-overlay">
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">visibility</span></button>
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">favorite</span></button>
-                  </div>
-                </div>
-
-                <div class="p-3">
-                  <h3 class="m-0 fw-bold fs-5">ساعة كلاسيكية ذهبية</h3>
-                  <div class="d-flex align-items-end justify-content-between mt-2">
-                    <div class="fw-bold" style="color:var(--primary); font-size:1.25rem;">٣٥٠ ر.س</div>
-                    <div class="old-price">٤٥٠ ر.س</div>
-                  </div>
-
-                  <button class="btn btn-primary w-100 rounded-pill fw-bold mt-3 d-flex align-items-center justify-content-center gap-2">
-                    <span>اختر الهدية</span>
-                    <span class="material-symbols-outlined" style="font-size:18px;">arrow_back</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card 6 -->
-            <div class="col">
-              <div class="p-card">
-                <div class="p-media">
-                  <div class="p-bg" style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuBjOCo9XCa0dgEq3LmD9mwkNaQpwHhonHj0ucF2ZY3On-1roTuJQOS7BNAkBbqHG827_RnA7YJ9fmGElftOQOW1zvJkjydjBr1Huc-tgnY0RBa51JA1f4nnOafi3zDUTVaR1gXbjEi-qmIqa3_62geqaFVajd6z-pld0IRirsas-mXQ_sKFFklEcZ014EwLFi2IE342kkawY3ygnqcQmtQQ5rgs47oda7ikNP3HPFT73eV_sKvciPFnpx2FZg3Y5M8zt2OF8YjNYK0');"></div>
-                  <div class="p-overlay">
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">visibility</span></button>
-                    <button class="quick-btn" type="button"><span class="material-symbols-outlined">favorite</span></button>
-                  </div>
-                </div>
-
-                <div class="p-3">
-                  <h3 class="m-0 fw-bold fs-5">عطر الزهور البرية</h3>
-                  <div class="d-flex align-items-end justify-content-between mt-2">
-                    <div class="fw-bold" style="color:var(--primary); font-size:1.25rem;">٢٨٠ ر.س</div>
-                  </div>
-
-                  <button class="btn btn-primary w-100 rounded-pill fw-bold mt-3 d-flex align-items-center justify-content-center gap-2">
-                    <span>اختر الهدية</span>
-                    <span class="material-symbols-outlined" style="font-size:18px;">arrow_back</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Pagination -->
-          <nav class="d-flex align-items-center justify-content-center gap-2 mt-5">
-            <button class="btn page-circle icon-btn text-secondary" type="button">
-              <span class="material-symbols-outlined">chevron_right</span>
-            </button>
-
-            <button class="btn page-circle btn-primary fw-bold shadow" type="button"
-                    style="box-shadow:0 12px 25px rgba(238,43,91,.30)!important;">1</button>
-
-            <button class="btn page-circle icon-btn" type="button">2</button>
-            <button class="btn page-circle icon-btn" type="button">3</button>
-            <span class="text-secondary">...</span>
-            <button class="btn page-circle icon-btn" type="button">12</button>
-
-            <button class="btn page-circle icon-btn" type="button">
-              <span class="material-symbols-outlined">chevron_left</span>
-            </button>
-          </nav>
-
-        </section>
-      </div>
+        </div>
     </div>
 @endsection
-
-
-
-  <!-- Offcanvas filters (Mobile) -->
-  <div class="offcanvas offcanvas-end" tabindex="-1" id="filtersCanvas" aria-labelledby="filtersCanvasLabel">
-    <div class="offcanvas-header">
-      <h5 class="offcanvas-title fw-bold" id="filtersCanvasLabel">تصفية النتائج</h5>
-      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-    </div>
-    <div class="offcanvas-body">
-      <div class="filter-card" style="box-shadow:none;">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-          <h3 class="m-0 filter-title fs-6">تصفية النتائج</h3>
-          <button class="btn btn-link p-0 fw-bold" style="color:var(--primary); font-size:.8rem;">مسح الكل</button>
-        </div>
-
-        <div class="filter-section pt-0 mt-0" style="border-top:0;">
-          <div class="d-flex align-items-center justify-content-between mb-3">
-            <span class="fw-bold small">نطاق السعر</span>
-          </div>
-          <div class="vstack gap-2">
-            <label class="form-check d-flex align-items-center gap-2 m-0">
-              <input class="form-check-input mt-0" type="checkbox">
-              <span class="small text-secondary-custom">أقل من ١٠٠ ر.س</span>
-            </label>
-            <label class="form-check d-flex align-items-center gap-2 m-0">
-              <input class="form-check-input mt-0" type="checkbox" checked>
-              <span class="small text-secondary-custom">١٠٠ - ٣٠٠ ر.س</span>
-            </label>
-            <label class="form-check d-flex align-items-center gap-2 m-0">
-              <input class="form-check-input mt-0" type="checkbox">
-              <span class="small text-secondary-custom">٣٠٠ - ٥٠٠ ر.س</span>
-            </label>
-            <label class="form-check d-flex align-items-center gap-2 m-0">
-              <input class="form-check-input mt-0" type="checkbox">
-              <span class="small text-secondary-custom">أكثر من ٥٠٠ ر.س</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="filter-section">
-          <div class="d-flex align-items-center justify-content-between mb-3">
-            <span class="fw-bold small">المناسبة</span>
-          </div>
-          <div class="vstack gap-2">
-            <label class="form-check d-flex align-items-center gap-2 m-0">
-              <input class="form-check-input mt-0" type="checkbox">
-              <span class="small text-secondary-custom">أعياد الميلاد</span>
-            </label>
-            <label class="form-check d-flex align-items-center gap-2 m-0">
-              <input class="form-check-input mt-0" type="checkbox">
-              <span class="small text-secondary-custom">ذكرى زواج</span>
-            </label>
-            <label class="form-check d-flex align-items-center gap-2 m-0">
-              <input class="form-check-input mt-0" type="checkbox">
-              <span class="small text-secondary-custom">تخرج</span>
-            </label>
-            <label class="form-check d-flex align-items-center gap-2 m-0">
-              <input class="form-check-input mt-0" type="checkbox">
-              <span class="small text-secondary-custom">مولود جديد</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="filter-section">
-          <div class="d-flex align-items-center justify-content-between">
-            <span class="fw-bold small">نوع الهدية</span>
-            <span class="material-symbols-outlined text-secondary">add</span>
-          </div>
-        </div>
-
-        <button class="btn btn-primary w-100 rounded-pill fw-bold mt-4" data-bs-dismiss="offcanvas">
-          تطبيق
-        </button>
-      </div>
-    </div>
-  </div>
-
-
-
-
-

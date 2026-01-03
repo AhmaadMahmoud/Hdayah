@@ -1,4 +1,4 @@
-@extends('frontend.layouts.master')
+﻿@extends('frontend.layouts.master')
 
 @section('content')
                 <!-- Hero -->
@@ -13,34 +13,34 @@
                             <div class="row align-items-center g-4 g-md-5">
 
                                 <div class="col-12 col-md-6 text-end">
-                                    <span class="badge-hero">🎁 نصنع لحظات لا تنسى</span>
+                                    <span class="badge-hero">خصومات حقيقية على هدايا مختارة</span>
 
                                     <h1 class="mt-3 fw-black"
                                         style="font-weight:900; font-size: clamp(2rem, 4vw, 3.5rem); line-height:1.15;">
-                                        هديتك جاهزة… <br>
-                                        <span style="color:var(--primary);">وإحنا نهتم بالباقي</span>
+                                        اكتشف هدايا تناسب كل مناسبة<br>
+                                        <span style="color:var(--primary);">توصيل سريع وتغليف أنيق</span>
                                     </h1>
 
                                     <p class="mt-3 mb-4"
                                         style="max-width:520px; color: rgba(255,255,255,.80); font-weight:600; font-size:1.1rem;">
-                                        نساعدك في اختيار وتغليف وإرسال الهدية المثالية لمن تحب. دعنا نعتني بالتفاصيل
-                                        الدقيقة بينما تستمتع أنت بلحظة الإهداء.
+                                        نختار لك منتجات عالية الجودة بلمسات عصرية، مع خيارات دفع آمنة وشحن سريع لجميع المدن.
+                                        اجعل هديتك مميزة مع تغليف احترافي ورسالة إهداء مجانية.
                                     </p>
 
                                     <div class="d-flex flex-wrap gap-3 justify-content-end">
                                         <a href="#" class="btn btn-primary btn-lg rounded-pill px-4"
                                             style="box-shadow:0 12px 30px rgba(238,43,91,.30); font-weight:800;">
-                                            ابدأ تجهيز هديتك
+                                            تسوق الآن
                                         </a>
                                         <a href="#" class="btn btn-outline-light btn-lg rounded-pill px-4"
                                             style="background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.20); font-weight:800;">
-                                            تصفح الكتالوج
+                                            تصفح العروض
                                         </a>
                                     </div>
                                 </div>
 
                                 <div class="col-12 col-md-6 d-none d-md-block">
-                                    <!-- مساحة للصورة/عنصر ديكور لو حبيت -->
+                                    <!-- مساحة للصور أو السلايدر -->
                                 </div>
 
                             </div>
@@ -49,115 +49,52 @@
                 </div>
             </section>
 
-            <!-- Categories -->
-            <section class="py-5">
-                <div class="container" style="max-width:1280px;">
-                    <div class="mb-4 text-end">
-                        <h2 class="fw-black" style="font-weight:900; font-size: clamp(1.8rem, 3vw, 2.4rem);">تسوق حسب
-                            الفئة</h2>
-                        <p class="text-sub fs-5 m-0">اختر الهدية المثالية لكل شخص عزيز عليك</p>
+<!-- Categories -->
+@php
+    use App\Models\Category;
+    $cats = isset($categories) ? $categories : Category::latest()->get();
+@endphp
+<section class="py-5">
+    <div class="container" style="max-width:1280px;">
+        <div class="mb-4 text-end">
+            <h2 class="fw-black" style="font-weight:900; font-size: clamp(1.8rem, 3vw, 2.4rem);">تسوق حسب الفئة</h2>
+            <p class="text-sub fs-5 m-0">تصفح أقسامنا المميزة واختر ما يناسبك.</p>
+        </div>
+
+        @if ($cats->count())
+            <div class="row g-3 g-md-4 row-cols-2 row-cols-md-3 row-cols-lg-5">
+                @foreach ($cats as $cat)
+                    @php
+                        $img = $cat->image;
+                        $imageUrl = $img
+                            ? (preg_match('/^https?:\/\//', $img)
+                                ? $img
+                                : asset('storage/' . ltrim($img, '/')))
+                            : null;
+                    @endphp
+                    <div class="col">
+        <a href="{{ route('categories.show', $cat->id) }}" class="text-decoration-none">
+                            <div class="cat-thumb">
+                                <div class="cat-bg"
+                                    style="background-image: {{ $imageUrl ? "url('" . $imageUrl . "')" : 'linear-gradient(135deg, #fef3c7, #ffe4e6)' }};">
+                                </div>
+                                <div class="cat-overlay"></div>
+                                <div class="cat-icon">
+                                    <span class="material-symbols-outlined">category</span>
+                                </div>
+                            </div>
+                            <div class="text-end mt-3">
+                                <h3 class="fs-5 fw-bold mb-1" style="color:inherit;">{{ $cat->name }}</h3>
+                            </div>
+                        </a>
                     </div>
-
-                    <div class="row g-3 g-md-4 row-cols-2 row-cols-md-3 row-cols-lg-5">
-
-                        <!-- Category 1 -->
-                        <div class="col">
-                            <a href="{{ route('cat.index') }}" class="text-decoration-none">
-                                <div class="cat-thumb">
-                                    <div class="cat-bg"
-                                        style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuD3ojTonWjcQvIahwT_GSbrdE_0IbsJHFPyy9mNJiRLhtYygIimaPQyKjBEKuw8gCTZ0wdxbYXk-Ul61VotjAlduFWIJHgzBRKQrKN0kFEeJAyYrOQ9EFvhGAayGvu8wy5NtdiF1zez2vSA2vo_7gB0JU73oq3AIxesqUcxumzL819cn0dwUBPzjhR2LJXcx7R6r3K5V2_QygZI9JcVe6UamgSnNc6Ym7J-Aadlb5Qh8iqjzEXCL6bz_-rK5_5KCWD85hhaA0pKa1s');">
-                                    </div>
-                                    <div class="cat-overlay"></div>
-                                    <div class="cat-icon">
-                                        <span class="material-symbols-outlined">filter_vintage</span>
-                                    </div>
-                                </div>
-                                <div class="text-end mt-3">
-                                    <h3 class="fs-5 fw-bold mb-1" style="color:inherit;">هدايا النساء</h3>
-                                    <p class="text-sub small m-0">اكسسوارات ومجوهرات</p>
-                                </div>
-                            </a>
-                        </div>
-
-                        <!-- Category 2 -->
-                        <div class="col">
-                            <a href="{{ route('cat.index') }}" class="text-decoration-none">
-                                <div class="cat-thumb">
-                                    <div class="cat-bg"
-                                        style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuABK_YINy7aVOqvW716P-6Xup9LDMBZIjTo5hjSNDeusZrSjAJJx8nonrONySJ5o2VEME77GwjbqOBSGqX5G1anuZwwG_u4ZzRFEZLJuUc3NoK4P306Lz4l95ETaiZB5coO4lMeXkWsCO5VpUYSsY8pPytHpeS32nSX45L3It8uJqBaGoCeBmYlz8rjkt8Me26edqThoCbhqmINlo13fSzfgEZtCa8zO2UKMp_s3rWWbBfpomWBbTfwhJG9QWqfqgrRuLmeKN-Akvo');">
-                                    </div>
-                                    <div class="cat-overlay"></div>
-                                    <div class="cat-icon">
-                                        <span class="material-symbols-outlined">watch</span>
-                                    </div>
-                                </div>
-                                <div class="text-end mt-3">
-                                    <h3 class="fs-5 fw-bold mb-1" style="color:inherit;">هدايا الرجال</h3>
-                                    <p class="text-sub small m-0">ساعات وعطور</p>
-                                </div>
-                            </a>
-                        </div>
-
-                        <!-- Category 3 -->
-                        <div class="col">
-                            <a href="{{ route('cat.index') }}" class="text-decoration-none">
-                                <div class="cat-thumb">
-                                    <div class="cat-bg"
-                                        style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuDPAEheqy-rF3Uj8OJ1WolEFtEQbEZt68grMZR8rx2nJbzVBX6aDxEevIOQoBvx49IS2viDh6u30o-HKApYK9BuT5BLqSH19E1pUInLivYun1hYW2pqvDzFSopttidjCeGFFg3ke4GpTpD0Q-LzrE1qUv9lEiWxU5gAJqumB_MM79FTG2eeNF1_EYGvdL9mWC8RQ5_k_2G1VlkDClVCDAPCBD9ZN8W0Vh-TCs-QXn92yp5oxh9rAkjqWAQBoVFMByrWP73fI3TNK3s');">
-                                    </div>
-                                    <div class="cat-overlay"></div>
-                                    <div class="cat-icon">
-                                        <span class="material-symbols-outlined">toys</span>
-                                    </div>
-                                </div>
-                                <div class="text-end mt-3">
-                                    <h3 class="fs-5 fw-bold mb-1" style="color:inherit;">ألعاب الأطفال</h3>
-                                    <p class="text-sub small m-0">ألعاب تعليمية وترفيهية</p>
-                                </div>
-                            </a>
-                        </div>
-
-                        <!-- Category 4 -->
-                        <div class="col">
-                            <a href="{{ route('cat.index') }}" class="text-decoration-none">
-                                <div class="cat-thumb">
-                                    <div class="cat-bg"
-                                        style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuAlFMULmsyjE0bcJp8izOqbqgXEHQP3_YJSw9hyVToXC_MJTD1LLhCS00IKCUYXBxgvqNC1SJ1Ity8IFLcOsYVh64ETntYiu0aIV5RNb7XaSsE9v4jt0FTmeg0gtYglZYVleGiTVZX-SrbDHWitif3P6wqGeU6j89WjGw6zfKMxgYYpc8G7GyAZ9PNyZ1x8k15Qm9_GPyMBkqEUb9jPb7pfKmKp5qlSLZ0kr8xWijuf71e5WYqR-nP5iFLOFPXoe6EoyqkOBIQgYJE');">
-                                    </div>
-                                    <div class="cat-overlay"></div>
-                                    <div class="cat-icon">
-                                        <span class="material-symbols-outlined">favorite</span>
-                                    </div>
-                                </div>
-                                <div class="text-end mt-3">
-                                    <h3 class="fs-5 fw-bold mb-1" style="color:inherit;">هدايا الأمهات</h3>
-                                    <p class="text-sub small m-0">أدوات منزلية وعناية</p>
-                                </div>
-                            </a>
-                        </div>
-
-                        <!-- Category 5 -->
-                        <div class="col">
-                            <a href="{{ route('cat.index') }}" class="text-decoration-none">
-                                <div class="cat-thumb">
-                                    <div class="cat-bg"
-                                        style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuDPrkHw8sDeRYj92VvTXX5u9GBe8HO0H-kXMRglbicLUj5hUAp9Da3JM8paGsyB5k39ds6dCZmjeiKiQMT9mcjkXvuHTzZtC12ZGkEInAVaCc0ikiOYm9x75sfPaJX3K3yfO5v_nxXm0chwm01gcyV1QCMJyxGpxxbbk3dIHXSWgT5b2wMS3sE0hix11MAjL9b58InqXeLlaJKcJlF_atB0dSq_oON4EgSPd0E6wWfpphweedllVw1saL-LlscLOdwiW82r8oPnT6g');">
-                                    </div>
-                                    <div class="cat-overlay"></div>
-                                    <div class="cat-icon">
-                                        <span class="material-symbols-outlined">coffee</span>
-                                    </div>
-                                </div>
-                                <div class="text-end mt-3">
-                                    <h3 class="fs-5 fw-bold mb-1" style="color:inherit;">هدايا الآباء</h3>
-                                    <p class="text-sub small m-0">مستلزمات شخصية</p>
-                                </div>
-                            </a>
-                        </div>
-
-                    </div>
-                </div>
-            </section>
+                @endforeach
+            </div>
+        @else
+            <div class="text-center text-secondary-custom">لا توجد أقسام متاحة حالياً.</div>
+        @endif
+    </div>
+</section>
 
             <!-- CTA -->
             <section class="py-3">
@@ -170,8 +107,9 @@
                                     <span class="material-symbols-outlined fs-2">post_add</span>
                                 </div>
                                 <div class="text-center text-md-end w-100">
-                                    <h3 class="m-0 fw-bold">هل تبحث عن هدية محددة؟</h3>
-                                    <p class="m-0 text-sub fw-semibold">تواصل معنا لإضافة منتج غير موجود بالمتجر</p>
+                                    <h3 class="m-0 fw-bold">أضف لمستك الخاصة على هديتك</h3>
+                                    <p class="m-0 text-sub fw-semibold">تواصل معنا لاختيار تغليف مخصص وبطاقة إهداء مكتوبة
+                                        بخط جميل لتصل هديتك جاهزة.</p>
                                 </div>
                             </div>
                             <div class="col-12 col-md-auto">
@@ -179,7 +117,7 @@
                                     style="border:1px solid rgba(238,43,91,.30); color:var(--primary); background: rgba(255,255,255,.60);">
                                     <span class="material-symbols-outlined align-middle me-1"
                                         style="font-size:20px;">chat</span>
-                                    تواصل معنا
+                                    تحدث معنا
                                 </button>
                             </div>
                         </div>
@@ -196,9 +134,8 @@
             <section class="py-5">
                 <div class="container" style="max-width:1280px;">
                     <div class="d-flex align-items-center justify-content-between mb-4">
-                        <h2 class="m-0 fw-black" style="font-weight:900;">باقات مختارة لك</h2>
-                        <a href="#" class="fw-bold text-decoration-none" style="color:var(--primary);">عرض
-                            الكل</a>
+                        <h2 class="m-0 fw-black" style="font-weight:900;">منتجات مميزة اخترناها لك</h2>
+                        <a href="#" class="fw-bold text-decoration-none" style="color:var(--primary);">عرض الكل</a>
                     </div>
 
                     <div class="d-flex gap-3 hide-scrollbar pb-3">
@@ -209,16 +146,16 @@
                                 <div class="p-img-bg"
                                     style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuDR3OgXIS-x1qzXZlK_g0vVASlZzm2YdcTojCqd7bQrXtZcKJKGmPAMSkferwQLxrXTm3pdq9d8XHvZWngR_8TNwwhBJSdSy02wfG7Zge2acx5mYIiITX-aThBBD7LsYc2zk9bWuh17ot0X5_ZeRTChLxVLCY8xfR7CwAs6gLKqnxkls3yD7MGT2QCw7bS4ANHSHXTjvlHQTvmTNtTWhj-0ROoDYmhNeZBPbiRl5k5vRgfNTUxa9thw1IpH3fXvUa2UFkshxOfEcIU');">
                                 </div>
-                                <div class="tag">جديد</div>
+                                <div class="tag">حصري</div>
                             </div>
 
                             <div class="mt-3">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <h3 class="fs-5 fw-bold m-0">باقة السعادة</h3>
+                                    <h3 class="fs-5 fw-bold m-0">صندوق هدايا فاخر</h3>
                                     <div class="fw-bold" style="color:var(--primary);">250 ر.س</div>
                                 </div>
-                                <p class="text-sub small mt-2 mb-3">تشكيلة مميزة من الشوكولاتة الفاخرة مع باقة ورد
-                                    صغيرة.</p>
+                                <p class="text-sub small mt-2 mb-3">مزيج من اكسسوارات أنيقة مع تغليف جاهز للإهداء ورسالة
+                                    خاصة.</p>
                                 <button class="btn btn-dark-soft w-100">
                                     <span class="material-symbols-outlined align-middle me-1"
                                         style="font-size:18px;">add_shopping_cart</span>
@@ -237,11 +174,11 @@
 
                             <div class="mt-3">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <h3 class="fs-5 fw-bold m-0">صندوق المفاجآت</h3>
+                                    <h3 class="fs-5 fw-bold m-0">سلة قهوة فاخرة</h3>
                                     <div class="fw-bold" style="color:var(--primary);">300 ر.س</div>
                                 </div>
-                                <p class="text-sub small mt-2 mb-3">صندوق غامض يحتوي على 5 منتجات مختارة بعناية لتفاجئ
-                                    من تحب.</p>
+                                <p class="text-sub small mt-2 mb-3">حبوب قهوة مختارة مع أدوات تحضير وهدايا صغيرة لمحبي
+                                    القهوة.</p>
                                 <button class="btn btn-dark-soft w-100">
                                     <span class="material-symbols-outlined align-middle me-1"
                                         style="font-size:18px;">add_shopping_cart</span>
@@ -256,15 +193,15 @@
                                 <div class="p-img-bg"
                                     style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuCYHUybphPn4pLQ-SY6CBsONpiLHdzIbX7vwB98Xz0kefd1Nn9ajreoV6D5OdjzarhpW3MEs1RR_RUb1QilnK2R2Br-zlClnyP3dB9dDRd-FYFuO9pBPVKAL9ra-0qiiD3o7G1Sd2NAvdhEvhmMjqsRtI-IA2w-F-sGmuji0HWw-ZIedhiqogf4v9BzNtBBxzJzhxYui2LGXEdVQLGgK3QzyzRd5_JQWSMf345SWXkBlptSmjEmQTO08p2SkXC2nn1Ye2v5yCM5mvY');">
                                 </div>
-                                <div class="tag primary">الأكثر مبيعاً</div>
+                                <div class="tag primary">عرض اليوم</div>
                             </div>
 
                             <div class="mt-3">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <h3 class="fs-5 fw-bold m-0">هدية الفخامة</h3>
+                                    <h3 class="fs-5 fw-bold m-0">مجموعة عناية شخصية</h3>
                                     <div class="fw-bold" style="color:var(--primary);">500 ر.س</div>
                                 </div>
-                                <p class="text-sub small mt-2 mb-3">طقم عطور فاخر مع ساعة كلاسيكية أنيقة.</p>
+                                <p class="text-sub small mt-2 mb-3">منتجات عناية مختارة بعناية لتجربة رفاهية متكاملة.</p>
                                 <button class="btn btn-dark-soft w-100">
                                     <span class="material-symbols-outlined align-middle me-1"
                                         style="font-size:18px;">add_shopping_cart</span>
@@ -283,10 +220,10 @@
 
                             <div class="mt-3">
                                 <div class="d-flex justify-content-between align-items-start">
-                                    <h3 class="fs-5 fw-bold m-0">باقة الورود</h3>
+                                    <h3 class="fs-5 fw-bold m-0">هدية بسيطة وأنيقة</h3>
                                     <div class="fw-bold" style="color:var(--primary);">150 ر.س</div>
                                 </div>
-                                <p class="text-sub small mt-2 mb-3">باقة من الورود الطبيعية الطازجة بتنسيق احترافي.</p>
+                                <p class="text-sub small mt-2 mb-3">خيار مثالي للإهداء السريع مع تغليف أنيق.</p>
                                 <button class="btn btn-dark-soft w-100">
                                     <span class="material-symbols-outlined align-middle me-1"
                                         style="font-size:18px;">add_shopping_cart</span>
@@ -303,9 +240,10 @@
             <section class="py-5">
                 <div class="container" style="max-width:1280px;">
                     <div class="text-center mb-4">
-                        <h2 class="fw-black mb-2" style="font-weight:900;">لماذا تختارنا؟</h2>
+                        <h2 class="fw-black mb-2" style="font-weight:900;">ليش تختار هداياك؟</h2>
                         <p class="text-sub mx-auto" style="max-width:720px;">
-                            نحن نؤمن بأن الهدية ليست مجرد غرض، بل هي تعبير عن مشاعر صادقة. لذلك نهتم بكل التفاصيل.
+                            نهتم بكل تفاصيل تجربتك: من اختيار المنتجات إلى التغليف والتسليم. هدفنا أن تصل هديتك بأفضل شكل
+                            وفي الوقت المناسب.
                         </p>
                     </div>
 
@@ -315,9 +253,9 @@
                                 <div class="mx-auto mb-3 icon-pill" style="width:64px;height:64px;">
                                     <span class="material-symbols-outlined fs-2">local_shipping</span>
                                 </div>
-                                <h3 class="fs-4 fw-bold mb-2">توصيل سريع</h3>
-                                <p class="text-sub small m-0">نصلك أينما كنت وفي الوقت المحدد، سواء كان توصيل فوري أو
-                                    مجدول لمناسبة خاصة.</p>
+                                <h3 class="fs-4 fw-bold mb-2">شحن سريع وآمن</h3>
+                                <p class="text-sub small m-0">توصيل خلال 24-48 ساعة عمل مع متابعة لحالة الطلب وتغليف يحمي
+                                    المنتج.</p>
                             </div>
                         </div>
 
@@ -326,9 +264,9 @@
                                 <div class="mx-auto mb-3 icon-pill" style="width:64px;height:64px;">
                                     <span class="material-symbols-outlined fs-2">redeem</span>
                                 </div>
-                                <h3 class="fs-4 fw-bold mb-2">تغليف فاخر</h3>
-                                <p class="text-sub small m-0">نستخدم أجود أنواع الورق والشرائط والاكسسوارات لنجعل هديتك
-                                    تبدو كتحفة فنية.</p>
+                                <h3 class="fs-4 fw-bold mb-2">خيارات إهداء مرنة</h3>
+                                <p class="text-sub small m-0">بطاقات إهداء، تغليف مخصص، ورسالة شخصية بدون أي تكلفة إضافية.
+                                </p>
                             </div>
                         </div>
 
@@ -337,9 +275,9 @@
                                 <div class="mx-auto mb-3 icon-pill" style="width:64px;height:64px;">
                                     <span class="material-symbols-outlined fs-2">verified_user</span>
                                 </div>
-                                <h3 class="fs-4 fw-bold mb-2">دفع آمن</h3>
-                                <p class="text-sub small m-0">نوفر طرق دفع متعددة ومحمية بالكامل، بما في ذلك أبل باي
-                                    ومدى والبطاقات الائتمانية.</p>
+                                <h3 class="fs-4 fw-bold mb-2">دفع آمن ودعم سريع</h3>
+                                <p class="text-sub small m-0">بوابات دفع موثوقة، وسياسة استبدال مرنة، وفريق دعم جاهز لمساعدتك
+                                    في أي وقت.</p>
                             </div>
                         </div>
                     </div>

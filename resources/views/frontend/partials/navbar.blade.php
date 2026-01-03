@@ -13,7 +13,7 @@
 
                     <nav class="d-none d-md-flex align-items-center gap-4">
                         <a class="fw-bold text-decoration-none" style="color:inherit" href="{{ url('/') }}">الرئيسية</a>
-                        <a class="text-decoration-none opacity-75" style="color:inherit" href="{{ route('cat.index') }}">المتجر</a>
+                        {{-- <a class="text-decoration-none opacity-75" style="color:inherit" href="{{ route('cat.index') }}">المتجر</a> --}}
                         <a class="text-decoration-none opacity-75" style="color:inherit" href="{{ route('products.index') }}">المناسبات</a>
                         <a class="text-decoration-none opacity-75" style="color:inherit" href="{{ url('/dashboard') }}">تواصل معنا</a>
                     </nav>

@@ -1,12 +1,12 @@
-@extends('dashboard.layouts.master')
+﻿@extends('dashboard.layouts.master')
 
 @section('content_dash')
     <div class="content-area">
         <div class="container-fluid" style="max-width: 1280px;">
             <header class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
                 <div>
-                    <h1 class="display-6 fw-black m-0" style="font-weight: 900;">إدارة المنتجات</h1>
-                    <p class="text-secondary-custom mb-0">عرض وإضافة وتعديل المنتجات مع الأقسام والصور من نفس الصفحة.</p>
+                    <h1 class="display-6 fw-black m-0" style="font-weight: 900;">المنتجات</h1>
+                    <p class="text-secondary-custom mb-0">إدارة المنتجات، الأقسام، الأسعار، والمخزون. يمكنك إضافة منتج جديد أو تعديل الموجود.</p>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <button class="btn text-white rounded-xl px-4 py-2" style="background: var(--primary); border: 0;"
@@ -25,7 +25,7 @@
 
             @if ($errors->any())
                 <div class="alert alert-danger rounded-xl border-0" role="alert">
-                    <div class="fw-bold mb-1">تعذّر الحفظ:</div>
+                    <div class="fw-bold mb-1">حدثت الأخطاء التالية:</div>
                     <ul class="mb-0">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -54,9 +54,9 @@
                             </select>
                             <select name="stock_status" class="form-select rounded-xl border-0"
                                 style="background: var(--bg-light); min-width: 160px;">
-                                <option value="">كل الحالات</option>
+                                <option value="">حالة المخزون</option>
                                 <option value="instock" @selected($stockFilter === 'instock')>متوفر (أكثر من 5)</option>
-                                <option value="low" @selected($stockFilter === 'low')>متوفر (1 - 5)</option>
+                                <option value="low" @selected($stockFilter === 'low')>قليل (1 - 5)</option>
                                 <option value="out" @selected($stockFilter === 'out')>غير متوفر</option>
                             </select>
                             <button class="btn rounded-xl border-0 d-flex align-items-center gap-1"
@@ -65,12 +65,12 @@
                                 <span class="small fw-semibold">تصفية</span>
                             </button>
                             <a href="{{ route('dashboard.products.index') }}" class="btn btn-light rounded-xl border-0">
-                                إعادة ضبط
+                                إعادة تعيين
                             </a>
                         </div>
                     </div>
                 </form>
-                <div class="small text-secondary-custom mt-2">التصفية والبحث تعمل تلقائياً، ويمكن إعادة الضبط.</div>
+                <div class="small text-secondary-custom mt-2">استخدم البحث والتصفية لتقليل النتائج ثم اضغط إعادة تعيين لإظهار كل المنتجات.</div>
             </div>
 
             <div class="panel rounded-xl shadow-sm overflow-hidden">
@@ -83,7 +83,7 @@
                                 <th class="px-4 py-3 text-secondary-custom small fw-bold">السعر</th>
                                 <th class="px-4 py-3 text-secondary-custom small fw-bold">المخزون</th>
                                 <th class="px-4 py-3 text-secondary-custom small fw-bold">الحالة</th>
-                                <th class="px-4 py-3 text-secondary-custom small fw-bold text-center">العمليات</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold text-center">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -113,7 +113,7 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-3 text-secondary-custom fw-semibold">
-                                        {{ optional($product->category)->name ?? $product->category ?? '—' }}
+                                        {{ $product->category->name ?? 'غير مصنف' }}
                                     </td>
                                     <td class="px-4 py-3 fw-bold">{{ number_format($product->price, 2) }} ر.س</td>
                                     <td class="px-4 py-3 fw-semibold">{{ $product->stock }}</td>
@@ -150,7 +150,7 @@
                                             <span class="material-symbols-outlined" style="font-size:20px;">edit</span>
                                         </button>
                                         <form method="POST" action="{{ route('dashboard.products.destroy', $product) }}"
-                                            class="d-inline" onsubmit="return confirm('تأكيد حذف المنتج؟');">
+                                            class="d-inline" onsubmit="return confirm('هل تريد حذف هذا المنتج؟');">
                                             @csrf
                                             @method('DELETE')
                                             <button class="icon-btn danger" type="submit">
@@ -162,7 +162,7 @@
                             @empty
                                 <tr>
                                     <td colspan="6" class="px-4 py-4 text-center text-secondary-custom">
-                                        لا توجد منتجات بعد.
+                                        لا توجد منتجات حالياً.
                                     </td>
                                 </tr>
                             @endforelse
@@ -173,10 +173,10 @@
                     <div class="small text-secondary-custom">
                         إجمالي <span class="fw-bold">{{ $products->count() }}</span> منتج/منتجات
                         @if ($search || $categoryFilter || $stockFilter)
-                            <span class="ms-2">| تم تطبيق تصفية</span>
+                            <span class="ms-2">| فُلتر حسب اختياراتك</span>
                         @endif
                     </div>
-                    <div class="small text-secondary-custom">الإضافة/التعديل من نفس الصفحة.</div>
+                    <div class="small text-secondary-custom">يمكنك إضافة/تحديث المنتجات من النموذج أدناه.</div>
                 </div>
             </div>
         </div>
@@ -206,17 +206,17 @@
                                             style="font-size:34px; color: var(--primary);">add_photo_alternate</span>
                                     </div>
                                     <div class="text-center">
-                                        <div class="fw-bold">اسحب الصور أو اضغط للرفع</div>
-                                        <div class="small text-secondary-custom">الحد الأقصى 4 ميجا لكل صورة</div>
+                                        <div class="fw-bold">ارفع صور المنتج أو اسحبها هنا</div>
+                                        <div class="small text-secondary-custom">الحد الأقصى 4 صور، حجم كل صورة 4MB</div>
                                     </div>
                                 </label>
                                 <input id="productImages" name="images[]" type="file" class="d-none" multiple accept="image/*" />
 
                                 <div class="row g-2 mt-2" id="existingImages">
-                                    <div class="col-12 text-secondary-custom small">لا توجد صور حالية.</div>
+                                    <div class="col-12 text-secondary-custom small">لا توجد صور حالياً.</div>
                                 </div>
                                 <div class="row g-2 mt-2" id="imagesPreview">
-                                    <div class="col-12 text-secondary-custom small">لم يتم اختيار صور جديدة بعد.</div>
+                                    <div class="col-12 text-secondary-custom small">ستظهر الصور المضافة هنا قبل الحفظ.</div>
                                 </div>
                             </div>
 
@@ -225,7 +225,7 @@
                                     <div class="col-12 col-md-6">
                                         <label class="form-label fw-bold">اسم المنتج</label>
                                         <input id="fieldName" name="name" class="form-control rounded-xl border-0"
-                                            style="background: var(--bg-light);" placeholder="مثال: باقة ورد حمراء"
+                                            style="background: var(--bg-light);" placeholder="مثال: صندوق هدايا فاخر"
                                             value="{{ old('name') }}" required />
                                     </div>
 
@@ -233,7 +233,7 @@
                                         <label class="form-label fw-bold">القسم</label>
                                         <select id="fieldCategory" name="category_id" class="form-select rounded-xl border-0"
                                             style="background: var(--bg-light);">
-                                            <option value="">بدون قسم</option>
+                                            <option value="">اختر القسم</option>
                                             @foreach ($categories as $category)
                                                 <option value="{{ $category->id }}" @selected(old('category_id') == $category->id)>{{ $category->name }}</option>
                                             @endforeach
@@ -248,14 +248,14 @@
                                     </div>
 
                                     <div class="col-12 col-md-4">
-                                        <label class="form-label fw-bold">تكلفة الشراء (اختياري)</label>
+                                        <label class="form-label fw-bold">تكلفة المنتج (اختياري)</label>
                                         <input id="fieldCost" name="cost" type="number" step="0.01" min="0"
                                             class="form-control rounded-xl border-0" style="background: var(--bg-light);"
                                             placeholder="0.00" value="{{ old('cost') }}" />
                                     </div>
 
                                     <div class="col-12 col-md-4">
-                                        <label class="form-label fw-bold">المخزون المتاح</label>
+                                        <label class="form-label fw-bold">الكمية في المخزون</label>
                                         <input id="fieldStock" name="stock" type="number" min="0"
                                             class="form-control rounded-xl border-0" style="background: var(--bg-light);"
                                             placeholder="0" value="{{ old('stock', 0) }}" required />
@@ -264,7 +264,7 @@
                                     <div class="col-12">
                                         <label class="form-label fw-bold">وصف المنتج</label>
                                         <textarea id="fieldDescription" name="description" rows="4" class="form-control rounded-xl border-0"
-                                            style="background: var(--bg-light);" placeholder="أكتب وصفاً مختصراً للمنتج...">{{ old('description') }}</textarea>
+                                            style="background: var(--bg-light);" placeholder="وصف مختصر يوضح مميزات المنتج...">{{ old('description') }}</textarea>
                                     </div>
 
                                     <div class="col-12">
@@ -596,7 +596,7 @@
         const renderExisting = (images) => {
             existing.innerHTML = '';
             if (!images || images.length === 0) {
-                existing.innerHTML = '<div class="col-12 text-secondary-custom small">لا توجد صور حالية.</div>';
+                existing.innerHTML = '<div class="col-12 text-secondary-custom small">لا توجد صور حالياً.</div>';
                 return;
             }
             images.forEach((url) => {
@@ -610,7 +610,7 @@
         const renderPreviews = () => {
             preview.innerHTML = '';
             if (!selectedFiles.length) {
-                preview.innerHTML = '<div class="col-12 text-secondary-custom small">لم يتم اختيار صور جديدة بعد.</div>';
+                preview.innerHTML = '<div class="col-12 text-secondary-custom small">ستظهر الصور المضافة هنا قبل الحفظ.</div>';
                 return;
             }
             selectedFiles.forEach((file, index) => {
@@ -656,7 +656,7 @@
                 form.action = btn.dataset.action;
                 methodInput.value = 'PATCH';
                 modalTitle.textContent = 'تعديل المنتج';
-                submitBtnText.textContent = 'تحديث المنتج';
+                submitBtnText.textContent = 'حفظ التعديلات';
                 fieldName.value = btn.dataset.name || '';
                 fieldCategory.value = btn.dataset.categoryId || '';
                 fieldPrice.value = btn.dataset.price || 0;

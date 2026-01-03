@@ -18,7 +18,6 @@ class ProductController extends Controller
     public function index(Request $request): View
     {
         $query = Product::with(['images', 'category:id,name']);
-
         $search = $request->get('q');
         $categoryFilter = $request->get('category_id');
         $stockFilter = $request->get('stock_status');

@@ -1,18 +1,19 @@
-@extends('dashboard.layouts.master')
+﻿@extends('dashboard.layouts.master')
 
 @section('content_dash')
     <div class="content-area">
         <div class="container-fluid" style="max-width: 1280px;">
             <header class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
                 <div>
-                    <h1 class="display-6 fw-black m-0" style="font-weight: 900;">الأقسام</h1>
-                    <p class="text-secondary-custom mb-0">إدارة الأقسام المستخدمة في المنتجات مع صورة واحدة لكل قسم.</p>
+                    <h1 class="display-6 fw-black m-0" style="font-weight: 900;">التصنيفات</h1>
+                    <p class="text-secondary-custom mb-0">إدارة التصنيفات وعرض صورها في الجدول. يمكنك إضافة تصنيف جديد أو تعديل
+                        الموجود والتأكد من ظهور الصور.</p>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <button class="btn text-white rounded-xl px-4 py-2" style="background: var(--primary); border: 0;"
                         data-bs-toggle="modal" data-bs-target="#categoryModal" id="openCreateCategory">
                         <span class="material-symbols-outlined align-middle" style="font-size:20px;">add</span>
-                        <span class="fw-bold small align-middle">إضافة قسم</span>
+                        <span class="fw-bold small align-middle">إضافة تصنيف</span>
                     </button>
                 </div>
             </header>
@@ -25,7 +26,7 @@
 
             @if ($errors->any())
                 <div class="alert alert-danger rounded-xl border-0" role="alert">
-                    <div class="fw-bold mb-1">تعذّر الحفظ:</div>
+                    <div class="fw-bold mb-1">حدثت الأخطاء التالية:</div>
                     <ul class="mb-0">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -39,18 +40,26 @@
                     <table class="table table-hover align-middle m-0 text-end">
                         <thead>
                             <tr style="background: var(--bg-light);">
-                                <th class="px-4 py-3 text-secondary-custom small fw-bold">القسم</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">اسم التصنيف</th>
                                 <th class="px-4 py-3 text-secondary-custom small fw-bold">الصورة</th>
-                                <th class="px-4 py-3 text-secondary-custom small fw-bold text-center">عمليات</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold text-center">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse ($categories as $category)
+                                @php
+                                    $img = $category->image;
+                                    $imageUrl = $img
+                                        ? (preg_match('/^https?:\/\//', $img)
+                                            ? $img
+                                            : asset('storage/' . ltrim($img, '/')))
+                                        : null;
+                                @endphp
                                 <tr>
                                     <td class="px-4 py-3 fw-bold">{{ $category->name }}</td>
                                     <td class="px-4 py-3">
-                                        @if ($category->image)
-                                            <span class="thumb thumb-mini" style="background-image:url('{{ asset('storage/' . $category->image) }}');"></span>
+                                        @if ($imageUrl)
+                                            <span class="thumb thumb-mini" style="background-image:url('{{ $imageUrl }}');"></span>
                                         @else
                                             <span class="text-secondary-custom small">لا توجد صورة</span>
                                         @endif
@@ -60,11 +69,11 @@
                                             data-bs-target="#categoryModal"
                                             data-action="{{ route('dashboard.categories.update', $category) }}"
                                             data-name="{{ $category->name }}"
-                                            data-image="{{ $category->image ? asset('storage/' . $category->image) : '' }}">
+                                            data-image="{{ $imageUrl }}">
                                             <span class="material-symbols-outlined" style="font-size:20px;">edit</span>
                                         </button>
                                         <form method="POST" action="{{ route('dashboard.categories.destroy', $category) }}"
-                                            class="d-inline" onsubmit="return confirm('تأكيد حذف القسم؟');">
+                                            class="d-inline" onsubmit="return confirm('هل تريد حذف هذا التصنيف؟');">
                                             @csrf
                                             @method('DELETE')
                                             <button class="icon-btn danger" type="submit">
@@ -75,7 +84,8 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="3" class="px-4 py-4 text-center text-secondary-custom">لا توجد أقسام.</td>
+                                    <td colspan="3" class="px-4 py-4 text-center text-secondary-custom">لا توجد تصنيفات حتى الآن.
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -83,7 +93,7 @@
                 </div>
                 <div class="d-flex align-items-center justify-content-between p-3 border-top border-soft">
                     <div class="small text-secondary-custom">
-                        إجمالي <span class="fw-bold">{{ $categories->count() }}</span> قسم/أقسام
+                        إجمالي <span class="fw-bold">{{ $categories->count() }}</span> تصنيف/تصنيفات.
                     </div>
                 </div>
             </div>
@@ -98,23 +108,23 @@
                     @csrf
                     <input type="hidden" name="_method" id="catMethod" value="">
                     <div class="modal-header border-bottom border-soft">
-                        <h5 class="modal-title fw-black" id="categoryModalTitle" style="font-weight: 900;">إضافة قسم</h5>
+                        <h5 class="modal-title fw-black" id="categoryModalTitle" style="font-weight: 900;">إضافة تصنيف</h5>
                         <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row g-4">
                             <div class="col-12 col-md-6">
-                                <label class="form-label fw-bold">اسم القسم</label>
+                                <label class="form-label fw-bold">اسم التصنيف</label>
                                 <input id="catName" name="name" class="form-control rounded-xl border-0"
-                                    style="background: var(--bg-light);" placeholder="مثال: ورود" required />
+                                    style="background: var(--bg-light);" placeholder="مثال: عناية شخصية" required />
                             </div>
                             <div class="col-12 col-md-6">
-                                <label class="form-label fw-bold">صورة القسم (اختيارية)</label>
+                                <label class="form-label fw-bold">صورة التصنيف (اختياري)</label>
                                 <input id="catImage" name="image" type="file" accept="image/*"
                                     class="form-control rounded-xl border-0" style="background: var(--bg-light);" />
                             </div>
                             <div class="col-12">
-                                <div class="small text-secondary-custom mb-2">معاينة الصورة الحالية:</div>
+                                <div class="small text-secondary-custom mb-2">معاينة الصورة قبل الحفظ:</div>
                                 <div id="catImagePreview" class="mini-slot" style="width: 120px; height: 120px;">
                                     <span class="text-secondary-custom small">لا توجد صورة</span>
                                 </div>
@@ -128,7 +138,7 @@
                         <button id="catSubmitBtn" type="submit" class="btn text-white rounded-xl px-4"
                             style="background: var(--primary); border:0;">
                             <span class="material-symbols-outlined align-middle" style="font-size:20px;">save</span>
-                            <span class="fw-bold align-middle" id="catSubmitText">حفظ القسم</span>
+                            <span class="fw-bold align-middle" id="catSubmitText">حفظ التصنيف</span>
                         </button>
                     </div>
                 </form>
@@ -180,8 +190,8 @@
         const resetForm = () => {
             form.action = "{{ route('dashboard.categories.store') }}";
             methodInput.value = '';
-            modalTitle.textContent = 'إضافة قسم';
-            submitText.textContent = 'حفظ القسم';
+            modalTitle.textContent = 'إضافة تصنيف';
+            submitText.textContent = 'حفظ التصنيف';
             nameInput.value = '';
             imageInput.value = '';
             preview.style.backgroundImage = 'none';
@@ -207,8 +217,8 @@
             btn.addEventListener('click', () => {
                 form.action = btn.dataset.action;
                 methodInput.value = 'PATCH';
-                modalTitle.textContent = 'تعديل قسم';
-                submitText.textContent = 'تحديث القسم';
+                modalTitle.textContent = 'تعديل التصنيف';
+                submitText.textContent = 'حفظ التعديلات';
                 nameInput.value = btn.dataset.name || '';
                 imageInput.value = '';
                 setPreview(btn.dataset.image || '');
