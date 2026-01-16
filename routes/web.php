@@ -26,6 +26,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
     Route::get('/products/{product}/gift', [GiftController::class, 'index'])->name('gifts.index');
+    Route::post('/products/{product}/gift/checkout', [GiftController::class, 'checkout'])->name('gifts.checkout');
+    Route::post('/products/{product}/gift/pay', [GiftController::class, 'pay'])->name('gifts.pay');
 });
 
 require __DIR__ . '/dashboard.php';

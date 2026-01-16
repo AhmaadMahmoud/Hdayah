@@ -41,4 +41,13 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'paymob' => [
+        'api_key' => env('PAYMOB_API_KEY'),
+        'iframe_id' => env('PAYMOB_IFRAME_ID'),
+        'integration_id_card' => env('PAYMOB_INTEGRATION_ID_CARD'),
+        'integration_id_cash' => env('PAYMOB_INTEGRATION_ID_CASH'),
+        'hmac' => env('PAYMOB_HMAC'),
+        'base_url' => env('PAYMOB_BASE_URL', 'https://accept.paymob.com'),
+    ],
+
 ];
