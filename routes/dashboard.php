@@ -5,10 +5,22 @@ use App\Http\Controllers\Dashboard\UserController;
 use App\Http\Controllers\Dashboard\ProductController;
 use App\Http\Controllers\Dashboard\CategoryController;
 use App\Http\Controllers\Dashboard\GiftOptionController;
+use App\Models\Order;
 
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/dashboard', function () {
-        return view('dashboard.index');
+        $orders = Order::with(['product', 'user'])
+            ->latest()
+            ->paginate(10);
+
+        $stats = [
+            'orders_count' => Order::count(),
+            'revenue' => Order::sum('total'),
+            'cash_count' => Order::where('payment_method', 'cash')->count(),
+            'card_count' => Order::where('payment_method', 'card')->count(),
+        ];
+
+        return view('dashboard.index', compact('orders', 'stats'));
     })->name('dashboard');
 
     Route::get('/dashboard/products', [ProductController::class, 'index'])->name('dashboard.products.index');

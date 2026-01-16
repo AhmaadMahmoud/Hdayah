@@ -206,8 +206,12 @@
                     </div>
 
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        @if ($product->images->first())
-                            <img src="{{ $product->images->first()->url }}" alt="{{ $product->name }}" class="rounded-3"
+                        @php
+                            $primaryImage = $product->images->first();
+                            $imgUrl = $primaryImage ? asset('storage/' . ltrim($primaryImage->path, '/')) : null;
+                        @endphp
+                        @if ($imgUrl)
+                            <img src="{{ $imgUrl }}" alt="{{ $product->name }}" class="rounded-3"
                                 style="width:72px;height:72px;object-fit:cover;">
                         @else
                             <div class="rounded-3 d-flex align-items-center justify-content-center"

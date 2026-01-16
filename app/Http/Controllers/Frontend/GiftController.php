@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Frontend;
 use App\Http\Controllers\Controller;
 use App\Models\GiftOption;
 use App\Models\Product;
+use App\Models\Order;
 use App\Services\PaymobService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -68,6 +69,30 @@ class GiftController extends Controller
         $amountCents = (int) round($selection['total'] * 100);
         $billing = $this->defaultBillingData($request);
 
+        $order = Order::create([
+            'product_id' => $product->id,
+            'user_id' => $request->user()?->id,
+            'total' => $selection['total'],
+            'payment_method' => $validated['payment_method'],
+            'status' => $validated['payment_method'] === 'cash' ? Order::STATUS_CASH_PENDING : Order::STATUS_PENDING_PAYMENT,
+            'meta' => [
+                'product_price' => $product->price,
+                'box_id' => $selection['box']?->id,
+                'box_name' => $selection['box']?->name,
+                'box_price' => $selection['boxPrice'],
+                'addons' => $selection['addons']->map(fn ($addon) => [
+                    'id' => $addon->id,
+                    'name' => $addon->name,
+                    'price' => $addon->price,
+                ])->values()->all(),
+                'card_id' => $selection['card']?->id,
+                'card_name' => $selection['card']?->name,
+                'card_price' => $selection['cardPrice'],
+                'include_card' => $selection['includeCard'],
+                'message' => $selection['message'],
+            ],
+        ]);
+
         $orderId = $paymob->createOrder(
             $amountCents,
             $product->name,
@@ -81,6 +106,10 @@ class GiftController extends Controller
             $billing
         );
 
+        $order->update([
+            'gateway_order_id' => $orderId,
+        ]);
+
         if ($validated['payment_method'] === 'cash') {
             $cashBill = $paymob->createCashCollection(
                 $amountCents,
@@ -93,6 +122,7 @@ class GiftController extends Controller
                 'product' => $product,
                 'paymentMethod' => 'cash',
                 'cashBill' => $cashBill,
+                'order' => $order,
             ]));
         }
 
@@ -102,6 +132,10 @@ class GiftController extends Controller
             $billing,
             config('services.paymob.integration_id_card')
         );
+
+        $order->update([
+            'status' => Order::STATUS_PENDING_PAYMENT,
+        ]);
 
         return redirect()->away($paymob->iframeUrl($paymentKey));
     }
