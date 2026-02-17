@@ -181,6 +181,12 @@ html[data-bs-theme="dark"] .cat-thumb {
     color: var(--primary);
 }
 
+/* Categories swiper */
+.categories-swiper .swiper-pagination {
+    margin-top: 1.25rem !important; /* ابعد النقط عن اسم التصنيف */
+    position: relative;
+}
+
 /* Horizontal scroll */
 .hide-scrollbar {
     overflow-x: auto;

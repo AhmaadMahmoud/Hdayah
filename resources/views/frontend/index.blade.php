@@ -1,4 +1,4 @@
-﻿@extends('frontend.layouts.master')
+@extends('frontend.layouts.master')
 
 @section('content')
                 <!-- Hero -->
@@ -56,39 +56,42 @@
 @endphp
 <section class="py-5">
     <div class="container" style="max-width:1280px;">
-        <div class="mb-4 text-end">
+        <div class="mb-4 text-start">
             <h2 class="fw-black" style="font-weight:900; font-size: clamp(1.8rem, 3vw, 2.4rem);">تسوق حسب الفئة</h2>
             <p class="text-sub fs-5 m-0">تصفح أقسامنا المميزة واختر ما يناسبك.</p>
         </div>
 
         @if ($cats->count())
-            <div class="row g-3 g-md-4 row-cols-2 row-cols-md-3 row-cols-lg-5">
-                @foreach ($cats as $cat)
-                    @php
-                        $img = $cat->image;
-                        $imageUrl = $img
-                            ? (preg_match('/^https?:\/\//', $img)
-                                ? $img
-                                : asset('storage/' . ltrim($img, '/')))
-                            : null;
-                    @endphp
-                    <div class="col">
-        <a href="{{ route('categories.show', $cat->id) }}" class="text-decoration-none">
-                            <div class="cat-thumb">
-                                <div class="cat-bg"
-                                    style="background-image: {{ $imageUrl ? "url('" . $imageUrl . "')" : 'linear-gradient(135deg, #fef3c7, #ffe4e6)' }};">
+            <div class="swiper categories-swiper" data-count="{{ $cats->count() }}" dir="rtl">
+                <div class="swiper-wrapper">
+                    @foreach ($cats as $cat)
+                        @php
+                            $img = $cat->image;
+                            $imageUrl = $img
+                                ? (preg_match('/^https?:\/\//', $img)
+                                    ? $img
+                                    : asset('storage/' . ltrim($img, '/')))
+                                : null;
+                        @endphp
+                        <div class="swiper-slide h-auto">
+                            <a href="{{ route('categories.show', $cat->id) }}" class="text-decoration-none d-block h-100">
+                                <div class="cat-thumb">
+                                    <div class="cat-bg"
+                                        style="background-image: {{ $imageUrl ? "url('" . $imageUrl . "')" : 'linear-gradient(135deg, #fef3c7, #ffe4e6)' }};">
+                                    </div>
+                                    <div class="cat-overlay"></div>
+                                    <div class="cat-icon">
+                                        <span class="material-symbols-outlined">category</span>
+                                    </div>
                                 </div>
-                                <div class="cat-overlay"></div>
-                                <div class="cat-icon">
-                                    <span class="material-symbols-outlined">category</span>
+                                <div class="text-start mt-3">
+                                    <h3 class="fs-5 fw-bold mb-1" style="color:inherit;">{{ $cat->name }}</h3>
                                 </div>
-                            </div>
-                            <div class="text-end mt-3">
-                                <h3 class="fs-5 fw-bold mb-1" style="color:inherit;">{{ $cat->name }}</h3>
-                            </div>
-                        </a>
-                    </div>
-                @endforeach
+                            </a>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="swiper-pagination"></div>
             </div>
         @else
             <div class="text-center text-secondary-custom">لا توجد أقسام متاحة حالياً.</div>
