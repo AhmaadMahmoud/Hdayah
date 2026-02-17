@@ -2,70 +2,16 @@
 
 @section('content')
     @php
-        // لو $products Pagination استخدم total() بدل count()
         $totalProducts = method_exists($products, 'total') ? $products->total() : $products->count();
-
-        // قراءة الفلاتر من Query String
-        $selectedPrices = (array) request()->input('price', []);
-        $selectedOccasions = (array) request()->input('occasion', []);
-        $selectedTypes = (array) request()->input('type', []);
-        $sort = request()->input('sort', 'relevance');
-
-        // خيارات ثابتة (تقدر تخليها ديناميكية من DB بعدين)
-        $priceOptions = [
-            'under-100' => 'أقل من ١٠٠ ر.س',
-            '100-300' => '١٠٠ - ٣٠٠ ر.س',
-            '300-500' => '٣٠٠ - ٥٠٠ ر.س',
-            'over-500' => 'أكثر من ٥٠٠ ر.س',
-        ];
-
-        $occasionOptions = [
-            'birthday' => 'أعياد الميلاد',
-            'anniversary' => 'ذكرى زواج',
-            'graduation' => 'تخرج',
-            'newborn' => 'مولود جديد',
-        ];
-
-        $typeOptions = [
-            'chocolate' => 'شوكولاتة',
-            'perfume' => 'عطور',
-            'teddy' => 'دمى',
-            'watch' => 'ساعات',
-        ];
-
-        // عشان نعرض Chips بشكل لطيف
-        $chipLabels = [];
-        foreach ($selectedPrices as $v) {
-            if (isset($priceOptions[$v])) {
-                $chipLabels[] = ['key' => 'price', 'val' => $v, 'label' => $priceOptions[$v]];
-            }
-        }
-        foreach ($selectedOccasions as $v) {
-            if (isset($occasionOptions[$v])) {
-                $chipLabels[] = ['key' => 'occasion', 'val' => $v, 'label' => $occasionOptions[$v]];
-            }
-        }
-        foreach ($selectedTypes as $v) {
-            if (isset($typeOptions[$v])) {
-                $chipLabels[] = ['key' => 'type', 'val' => $v, 'label' => $typeOptions[$v]];
-            }
-        }
-
-        // مساعد: يبني لينك يشيل Chip واحد
-        $removeFilterUrl = function ($key, $val) {
-            $q = request()->query();
-            $arr = (array) data_get($q, $key, []);
-            $arr = array_values(array_filter($arr, fn($x) => $x !== $val));
-            if (count($arr)) {
-                $q[$key] = $arr;
-            } else {
-                unset($q[$key]);
-            }
-            return url()->current() . '?' . http_build_query($q);
-        };
-
-        // مساعد: لينك مسح كل الفلاتر
-        $clearAllUrl = url()->current();
+        $config = $filtersEnabled ?? [];
+        $priceOptions = collect($config['price']['options'] ?? [])
+            ->mapWithKeys(fn($opt) => [$opt['value'] => $opt['label']])
+            ->all();
+        $selectedPrices = $selectedPrices ?? [];
+        $stockFilter = $stockFilter ?? null;
+        $sort = $sort ?? ($config['sort']['default'] ?? 'relevance');
+        $search = $search ?? '';
+        $clearAllUrl = route('categories.show', $category);
     @endphp
 
     <style>
@@ -167,39 +113,76 @@
     <div class="container-fluid py-5" style="max-width:1280px;">
 
         <!-- Heading -->
-        <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
+        <div
+            class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4 border-bottom pb-3">
             <div class="text-end">
                 <h1 class="fw-bolder m-0" style="font-weight:900;">{{ $category->name }}</h1>
                 <p class="text-secondary-2 fs-5 m-0">عدد المنتجات: {{ $totalProducts }}</p>
             </div>
 
             <!-- Sort -->
-            <form method="GET" class="dropdown">
-                @foreach (request()->except('sort') as $k => $v)
-                    @if (is_array($v))
-                        @foreach ($v as $vv)
-                            <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
+            <div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2">
+                @if (($config['search']['enabled'] ?? true))
+                    <form method="GET" class="w-100" style="max-width:260px;">
+                        @foreach (request()->except('q') as $k => $v)
+                            @if (is_array($v))
+                                @foreach ($v as $vv)
+                                    <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
+                                @endforeach
+                            @else
+                                <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+                            @endif
                         @endforeach
-                    @else
-                        <input type="hidden" name="{{ $k }}" value="{{ $v }}">
-                    @endif
-                @endforeach
+                        <div class="input-group">
+                            <input type="search" name="q" value="{{ $search }}" class="form-control"
+                                placeholder="بحث داخل التصنيف..." />
+                            <button class="btn btn-outline-secondary" type="submit">
+                                <span class="material-symbols-outlined" style="font-size:18px;">search</span>
+                            </button>
+                        </div>
+                    </form>
+                @endif
 
-                <button class="btn bg-white d-inline-flex align-items-center gap-2 shadow-sm"
-                    style="border-radius:999px;height:40px;border:1px solid #e5e7eb;" data-bs-toggle="dropdown"
-                    type="button">
-                    <span class="material-symbols-outlined" style="font-size:20px;">sort</span>
-                    <span class="fw-medium">ترتيب حسب</span>
-                    <span class="material-symbols-outlined" style="font-size:20px;">expand_more</span>
-                </button>
+                @if (($config['sort']['enabled'] ?? true) && !empty($config['sort']['options']))
+                    <form method="GET" class="dropdown">
+                        @foreach (request()->except('sort') as $k => $v)
+                            @if (is_array($v))
+                                @foreach ($v as $vv)
+                                    <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
+                                @endforeach
+                            @else
+                                <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+                            @endif
+                        @endforeach
 
-                <ul class="dropdown-menu text-end">
-                    <li><button class="dropdown-item" name="sort" value="relevance">الأكثر ملاءمة</button></li>
-                    <li><button class="dropdown-item" name="sort" value="price_asc">الأقل سعراً</button></li>
-                    <li><button class="dropdown-item" name="sort" value="price_desc">الأعلى سعراً</button></li>
-                    <li><button class="dropdown-item" name="sort" value="latest">الأحدث</button></li>
-                </ul>
-            </form>
+                        <button class="btn bg-white d-inline-flex align-items-center gap-2 shadow-sm"
+                            style="border-radius:999px;height:40px;border:1px solid #e5e7eb;" data-bs-toggle="dropdown"
+                            type="button">
+                            <span class="material-symbols-outlined" style="font-size:20px;">sort</span>
+                            <span class="fw-medium">ترتيب حسب</span>
+                            <span class="material-symbols-outlined" style="font-size:20px;">expand_more</span>
+                        </button>
+
+                        <ul class="dropdown-menu text-end">
+                            @foreach ($config['sort']['options'] as $opt)
+                                @php
+                                    $labelMap = [
+                                        'relevance' => 'الأكثر ملاءمة',
+                                        'price_asc' => 'الأقل سعراً',
+                                        'price_desc' => 'الأعلى سعراً',
+                                        'latest' => 'الأحدث',
+                                    ];
+                                @endphp
+                                <li>
+                                    <button class="dropdown-item" name="sort" value="{{ $opt }}">
+                                        {{ $labelMap[$opt] ?? $opt }}
+                                    </button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </form>
+                @endif
+            </div>
         </div>
 
         <div class="row g-4">
@@ -227,64 +210,46 @@
                     </div>
 
                     <form method="GET">
-                        <!-- keep sort -->
+                        <!-- keep sort/search -->
+                        @if ($search !== '')
+                            <input type="hidden" name="q" value="{{ $search }}">
+                        @endif
                         @if ($sort)
                             <input type="hidden" name="sort" value="{{ $sort }}">
                         @endif
 
-                        <!-- Price -->
-                        <div class="sidebar-section pt-0 border-0">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-bold">نطاق السعر</span>
-                                <span class="material-symbols-outlined text-secondary">remove</span>
+                        @if (($config['price']['enabled'] ?? true) && count($priceOptions))
+                            <div class="sidebar-section pt-0 border-0">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="fw-bold">نطاق السعر</span>
+                                    <span class="material-symbols-outlined text-secondary">remove</span>
+                                </div>
+                                <div class="vstack gap-2">
+                                    @foreach ($priceOptions as $val => $label)
+                                        <label class="form-check d-flex align-items-center gap-2 m-0">
+                                            <input class="form-check-input mt-0" type="checkbox" name="price[]"
+                                                value="{{ $val }}"
+                                                {{ in_array($val, $selectedPrices) ? 'checked' : '' }}>
+                                            <span class="text-secondary">{{ $label }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
                             </div>
-                            <div class="vstack gap-2">
-                                @foreach ($priceOptions as $val => $label)
-                                    <label class="form-check d-flex align-items-center gap-2 m-0">
-                                        <input class="form-check-input mt-0" type="checkbox" name="price[]"
-                                            value="{{ $val }}"
-                                            {{ in_array($val, $selectedPrices) ? 'checked' : '' }}>
-                                        <span class="text-secondary">{{ $label }}</span>
-                                    </label>
-                                @endforeach
-                            </div>
-                        </div>
+                        @endif
 
-                        <!-- Occasion -->
-                        <div class="sidebar-section">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-bold">المناسبة</span>
-                                <span class="material-symbols-outlined text-secondary">remove</span>
+                        @if (($config['stock']['enabled'] ?? true))
+                            <div class="sidebar-section">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span class="fw-bold">حالة التوفر</span>
+                                    <span class="material-symbols-outlined text-secondary">remove</span>
+                                </div>
+                                <select name="stock" class="form-select form-select-sm rounded-2">
+                                    <option value="">الكل</option>
+                                    <option value="instock" @selected($stockFilter === 'instock')>متوفر</option>
+                                    <option value="out" @selected($stockFilter === 'out')>غير متوفر</option>
+                                </select>
                             </div>
-                            <div class="vstack gap-2">
-                                @foreach ($occasionOptions as $val => $label)
-                                    <label class="form-check d-flex align-items-center gap-2 m-0">
-                                        <input class="form-check-input mt-0" type="checkbox" name="occasion[]"
-                                            value="{{ $val }}"
-                                            {{ in_array($val, $selectedOccasions) ? 'checked' : '' }}>
-                                        <span class="text-secondary">{{ $label }}</span>
-                                    </label>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <!-- Type -->
-                        <div class="sidebar-section">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-bold">نوع الهدية</span>
-                                <span class="material-symbols-outlined text-secondary">add</span>
-                            </div>
-                            <div class="vstack gap-2">
-                                @foreach ($typeOptions as $val => $label)
-                                    <label class="form-check d-flex align-items-center gap-2 m-0">
-                                        <input class="form-check-input mt-0" type="checkbox" name="type[]"
-                                            value="{{ $val }}"
-                                            {{ in_array($val, $selectedTypes) ? 'checked' : '' }}>
-                                        <span class="text-secondary">{{ $label }}</span>
-                                    </label>
-                                @endforeach
-                            </div>
-                        </div>
+                        @endif
 
                         <button class="btn w-100 mt-3 btn-choose" style="height:44px;">تطبيق</button>
                     </form>
@@ -293,24 +258,6 @@
 
             <!-- Products Grid -->
             <section class="col-12 col-lg-9">
-
-                <!-- Chips -->
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    @foreach ($chipLabels as $chip)
-                        <a class="pill" href="{{ $removeFilterUrl($chip['key'], $chip['val']) }}">
-                            <span>{{ $chip['label'] }}</span>
-                            <span class="material-symbols-outlined" style="font-size:18px;">close</span>
-                        </a>
-                    @endforeach
-
-                    @if (count($chipLabels))
-                        <a class="btn btn-link p-0 text-secondary-2" style="font-size:.85rem;text-decoration-style:dotted;"
-                            href="{{ $clearAllUrl }}">
-                            مسح جميع المرشحات
-                        </a>
-                    @endif
-                </div>
-
                 @if ($products->count())
                     <div class="row g-3 g-md-4 row-cols-2 row-cols-md-3 row-cols-lg-4">
 
@@ -352,7 +299,6 @@
 
                     </div>
 
-                    {{-- Pagination لو Paginate --}}
                     @if (method_exists($products, 'links'))
                         <div class="mt-5 d-flex justify-content-center">
                             {{ $products->withQueryString()->links() }}
@@ -375,55 +321,40 @@
         <div class="offcanvas-body">
             <div class="sidebar-card p-3">
                 <form method="GET">
+                    @if ($search !== '')
+                        <input type="hidden" name="q" value="{{ $search }}">
+                    @endif
                     @if ($sort)
                         <input type="hidden" name="sort" value="{{ $sort }}">
                     @endif
 
-                    <div class="mb-3">
-                        <div class="fw-bold mb-2">نطاق السعر</div>
-                        <div class="vstack gap-2">
-                            @foreach ($priceOptions as $val => $label)
-                                <label class="form-check d-flex align-items-center gap-2 m-0">
-                                    <input class="form-check-input mt-0" type="checkbox" name="price[]"
-                                        value="{{ $val }}"
-                                        {{ in_array($val, $selectedPrices) ? 'checked' : '' }}>
-                                    <span class="text-secondary">{{ $label }}</span>
-                                </label>
-                            @endforeach
+                    @if (($config['price']['enabled'] ?? true) && count($priceOptions))
+                        <div class="mb-3">
+                            <div class="fw-bold mb-2">نطاق السعر</div>
+                            <div class="vstack gap-2">
+                                @foreach ($priceOptions as $val => $label)
+                                    <label class="form-check d-flex align-items-center gap-2 m-0">
+                                        <input class="form-check-input mt-0" type="checkbox" name="price[]"
+                                            value="{{ $val }}"
+                                            {{ in_array($val, $selectedPrices) ? 'checked' : '' }}>
+                                        <span class="text-secondary">{{ $label }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
                         </div>
-                    </div>
+                    @endif
 
-                    <hr>
-
-                    <div class="mb-3">
-                        <div class="fw-bold mb-2">المناسبة</div>
-                        <div class="vstack gap-2">
-                            @foreach ($occasionOptions as $val => $label)
-                                <label class="form-check d-flex align-items-center gap-2 m-0">
-                                    <input class="form-check-input mt-0" type="checkbox" name="occasion[]"
-                                        value="{{ $val }}"
-                                        {{ in_array($val, $selectedOccasions) ? 'checked' : '' }}>
-                                    <span class="text-secondary">{{ $label }}</span>
-                                </label>
-                            @endforeach
+                    @if (($config['stock']['enabled'] ?? true))
+                        <hr>
+                        <div class="mb-3">
+                            <div class="fw-bold mb-2">حالة التوفر</div>
+                            <select name="stock" class="form-select form-select-sm rounded-2">
+                                <option value="">الكل</option>
+                                <option value="instock" @selected($stockFilter === 'instock')>متوفر</option>
+                                <option value="out" @selected($stockFilter === 'out')>غير متوفر</option>
+                            </select>
                         </div>
-                    </div>
-
-                    <hr>
-
-                    <div class="mb-3">
-                        <div class="fw-bold mb-2">نوع الهدية</div>
-                        <div class="vstack gap-2">
-                            @foreach ($typeOptions as $val => $label)
-                                <label class="form-check d-flex align-items-center gap-2 m-0">
-                                    <input class="form-check-input mt-0" type="checkbox" name="type[]"
-                                        value="{{ $val }}"
-                                        {{ in_array($val, $selectedTypes) ? 'checked' : '' }}>
-                                    <span class="text-secondary">{{ $label }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
+                    @endif
 
                     <button class="btn btn-choose w-100" style="height:44px;">تطبيق</button>
                     <a href="{{ $clearAllUrl }}" class="btn btn-light w-100 mt-2" style="border-radius:999px;">مسح

@@ -1,21 +1,24 @@
 <?php
+
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\FilterConfig;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-class ProductController extends Controller
+class CategoryController extends Controller
 {
-    public function index(Request $request): View
+    public function show(Request $request, Category $category): View
     {
-        $config = $this->normalizeConfig(FilterConfig::getConfig('products'));
+        $config = $this->normalizeConfig(FilterConfig::getConfig('categories'));
 
-        $query = Product::with(['images', 'category:id,name']);
+        $query = Product::with(['images', 'category'])
+            ->where('category_id', $category->id);
 
-        // بحث
+        // بحث داخل التصنيف
         $search = null;
         if ($config['search']['enabled']) {
             $search = trim((string) $request->input('q', ''));
@@ -25,11 +28,6 @@ class ProductController extends Controller
                         ->orWhere('description', 'like', '%' . $search . '%');
                 });
             }
-        }
-
-        // فلتر كاتيجوري لو موجود
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->integer('category_id'));
         }
 
         // فلتر سعر
@@ -82,7 +80,8 @@ class ProductController extends Controller
 
         $products = $query->paginate(16)->withQueryString();
 
-        return view('frontend.products.index', [
+        return view('frontend.categories.index', [
+            'category' => $category,
             'products' => $products,
             'filtersEnabled' => $config,
             'sort' => $sort,
@@ -90,21 +89,6 @@ class ProductController extends Controller
             'selectedPrices' => $selectedPrices,
             'stockFilter' => $stockFilter,
         ]);
-    }
-
-    public function show(Product $product): View
-    {
-        $product->load(['images', 'category:id,name']);
-
-        $relatedQuery = Product::with('images')->whereKeyNot($product->id);
-
-        if ($product->category_id) {
-            $relatedQuery->where('category_id', $product->category_id);
-        }
-
-        $related = $relatedQuery->latest()->take(4)->get();
-
-        return view('frontend.products.show', compact('product', 'related'));
     }
 
     private function applySort($query, string $sort): void
@@ -188,3 +172,4 @@ class ProductController extends Controller
         ];
     }
 }
+

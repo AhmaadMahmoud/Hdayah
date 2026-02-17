@@ -6,6 +6,7 @@ use App\Http\Controllers\Dashboard\ProductController;
 use App\Http\Controllers\Dashboard\CategoryController;
 use App\Http\Controllers\Dashboard\GiftOptionController;
 use App\Http\Controllers\Dashboard\GiftOptionTypeController;
+use App\Http\Controllers\Dashboard\FilterController;
 use App\Models\Order;
 
 Route::middleware(['auth', 'admin'])->group(function () {
@@ -44,4 +45,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::get('/dashboard/users', [UserController::class, 'index'])->name('dashboard.users.index');
     Route::patch('/dashboard/users/{user}/role', [UserController::class, 'updateRole'])->name('dashboard.users.update-role');
+
+    Route::get('/dashboard/filters', [FilterController::class, 'edit'])->name('dashboard.filters.edit');
+    Route::post('/dashboard/filters', [FilterController::class, 'update'])->name('dashboard.filters.update');
 });
