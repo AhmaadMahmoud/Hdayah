@@ -27,6 +27,11 @@
                         <span class="small fw-semibold">الأقسام</span>
                     </a>
 
+                    <a class="nav-item-link {{ request()->routeIs('dashboard.gifts.index') ? 'active' : '' }}" href="{{ route('dashboard.gifts.index') }}">
+                        <span class="material-symbols-outlined ico">card_giftcard</span>
+                        <span class="small fw-semibold">تخصيص الهدية</span>
+                    </a>
+
                     <a class="nav-item-link" href="#">
                         <span class="material-symbols-outlined ico">cloud_upload</span>
                         <span class="small fw-semibold">تحميلات المنتجات</span>

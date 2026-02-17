@@ -25,8 +25,8 @@
                     <div class="d-flex align-items-center gap-3 pe-2 me-2"
                         style="border-right:1px solid var(--border);">
                         <div class="d-none d-lg-flex flex-column align-items-end">
-                            <span class="small fw-bold">أحمد محمد</span>
-                            <span class="text-sec" style="font-size:.75rem;">مدير النظام</span>
+                            <span class="small fw-bold">{{ auth()->user()->name }} </span>
+                            <span class="text-sec" style="font-size:.75rem;">{{ auth()->user()->role }}</span>
                         </div>
                         <div class="avatar"
                             style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuDq1yATgFu9KU3eGOQcyrPtRgyxg4VpImoYNHrF-8cwQ5rkPqoAyQpo4RcDoIpSX81Besc-18VlVz3aydur9VXvEVmz3PbGTUQc79-kfBA40mSJ-RhYkp3axlKsNWjEOPpp5glFos7mDErIDT_miagtudTYoEr4lMkFL2IFa6jNUXeMjHQ-78pB1Wovk6olf1-4Yrp-pB6zLHDSqaIf5pmNHoT-YBZUOpdcFDTqsbOPYVeUZADgsrDKmip9kcZlblUVAF4LJzrMALo');"

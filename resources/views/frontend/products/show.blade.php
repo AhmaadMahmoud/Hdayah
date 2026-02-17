@@ -1,4 +1,4 @@
-﻿@extends('frontend.layouts.master')
+@extends('frontend.layouts.master')
 @section('content')
     <div class="container-fluid py-4" style="max-width:1440px;">
         <div class="container-fluid py-4 py-md-5" style="max-width:1440px;">
@@ -115,10 +115,14 @@
                                 </div>
                             </div>
 
-                            <button class="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 d-flex align-items-center justify-content-center gap-2">
-                                <span class="material-symbols-outlined">add_box</span>
-                                <span>أضف إلى السلة</span>
-                            </button>
+                            <form action="{{ route('cart.add', $product) }}" method="post" id="addToCartForm" class="d-flex flex-column gap-2">
+                                @csrf
+                                <input type="hidden" name="quantity" id="cartQuantity" value="1">
+                                <button type="submit" class="btn btn-outline-primary w-100 rounded-pill fw-bold py-3 d-flex align-items-center justify-content-center gap-2" id="addToCartBtn">
+                                    <span class="material-symbols-outlined">add_box</span>
+                                    <span>أضف إلى السلة</span>
+                                </button>
+                            </form>
 
                             <a href="{{ route('gifts.index', $product) }}" class="btn btn-primary w-100 rounded-pill fw-bold py-3 mt-3 d-flex align-items-center justify-content-center gap-2" style="box-shadow: 0 14px 30px rgba(238,43,91,.25);">
                                 <span>انتقل لأختيار التغليف</span>
@@ -186,6 +190,69 @@
                     btn.classList.add('active');
                 });
             });
+
+            // تشغيل جزء الكمية
+            const qtyInput = document.querySelector('.qty-input');
+            const qtyBtns = document.querySelectorAll('.qty-pill .qty-btn');
+            const maxStock = {{ $product->stock ?? 999 }};
+
+            if (qtyInput && qtyBtns.length >= 2) {
+                const btnAdd = qtyBtns[0];
+                const btnRemove = qtyBtns[1];
+
+                function updateQty(value) {
+                    let n = parseInt(value, 10) || 1;
+                    n = Math.max(1, Math.min(maxStock, n));
+                    qtyInput.value = n;
+                    return n;
+                }
+
+                btnAdd.addEventListener('click', () => {
+                    updateQty(parseInt(qtyInput.value, 10) + 1);
+                });
+
+                btnRemove.addEventListener('click', () => {
+                    updateQty(parseInt(qtyInput.value, 10) - 1);
+                });
+            }
+
+            // أضف إلى السلة (AJAX وتحديث عداد السلة في الـ navbar)
+            const addToCartForm = document.getElementById('addToCartForm');
+            const cartQuantityInput = document.getElementById('cartQuantity');
+            if (addToCartForm && qtyInput) {
+                addToCartForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    cartQuantityInput.value = qtyInput.value;
+                    const btn = document.getElementById('addToCartBtn');
+                    const origText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جاري الإضافة...';
+                    try {
+                        const formData = new FormData(addToCartForm);
+                        const res = await fetch(addToCartForm.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                        });
+                        const data = await res.json();
+                        if (data.ok) {
+                            const badge = document.getElementById('navbarCartCount');
+                            if (badge) {
+                                badge.textContent = data.cart_count;
+                                badge.classList.remove('d-none');
+                            }
+                            btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span><span>تمت الإضافة</span>';
+                            setTimeout(() => { btn.innerHTML = origText; btn.disabled = false; }, 1500);
+                        } else {
+                            btn.innerHTML = origText;
+                            btn.disabled = false;
+                        }
+                    } catch (err) {
+                        btn.innerHTML = origText;
+                        btn.disabled = false;
+                    }
+                });
+            }
         });
     </script>
 @endsection

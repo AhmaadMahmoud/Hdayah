@@ -19,9 +19,14 @@
                     </nav>
 
                     <div class="d-flex align-items-center gap-2">
-                        <button class="pill-btn" type="button" aria-label="Cart">
+                        <a href="{{ route('cart.index') }}" class="pill-btn d-flex align-items-center justify-content-center position-relative text-decoration-none" aria-label="السلة" id="navbarCartBtn">
                             <span class="material-symbols-outlined" style="font-size:20px;">shopping_cart</span>
-                        </button>
+                            @if (isset($cartCount) && $cartCount > 0)
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill" id="navbarCartCount" style="font-size:0.65rem; background-color:#ee2b5b; color:#fff;">{{ $cartCount }}</span>
+                            @else
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill d-none" id="navbarCartCount" style="font-size:0.65rem; background-color:#ee2b5b; color:#fff;">0</span>
+                            @endif
+                        </a>
                         <button class="pill-btn" type="button" aria-label="Search">
                             <span class="material-symbols-outlined" style="font-size:20px;">search</span>
                         </button>

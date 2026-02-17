@@ -42,16 +42,28 @@
                 ];
             @endphp
 
+            <p class="small text-secondary-custom mb-4">العناصر <strong>النشطة</strong> فقط تظهر في صفحة المستخدم (تغليف الهدية). استخدم "عرض في الموقع" أو "مخفي" للتحكم في الظهور.</p>
+
             @foreach ($typeLabels as $type => $label)
-                <div class="panel rounded-xl shadow-sm overflow-hidden mb-4">
-                    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-soft" style="background: var(--bg-light);">
+                @php
+                    $addLabel = $type === \App\Models\GiftOption::TYPE_BOX ? 'إضافة صندوق' : ($type === \App\Models\GiftOption::TYPE_ADDON ? 'إضافة إضافة' : 'إضافة بطاقة');
+                @endphp
+                <div class="panel rounded-xl shadow-sm overflow-hidden mb-4" data-gift-type="{{ $type }}">
+                    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-soft flex-wrap gap-2" style="background: var(--bg-light);">
                         <div>
                             <h3 class="h5 fw-bold mb-0">{{ $label }}</h3>
                             <div class="small text-secondary-custom">إدارة العناصر المعروضة في خطوة التغليف.</div>
                         </div>
-                        <span class="badge rounded-pill" style="background:#fef3f3; color:var(--primary);">
-                            {{ ($options[$type] ?? collect())->count() }} عنصر
-                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-sm text-white rounded-xl px-3 py-2 btn-add-by-type" style="background: var(--primary); border: 0;"
+                                data-type="{{ $type }}" data-bs-toggle="modal" data-bs-target="#giftOptionModal">
+                                <span class="material-symbols-outlined align-middle" style="font-size:18px;">add</span>
+                                <span class="small fw-bold align-middle">{{ $addLabel }}</span>
+                            </button>
+                            <span class="badge rounded-pill" style="background:#fef3f3; color:var(--primary);">
+                                {{ ($options[$type] ?? collect())->count() }} عنصر
+                            </span>
+                        </div>
                     </div>
 
                     <div class="table-responsive">
@@ -164,6 +176,7 @@
                                 <label class="form-label fw-bold">النوع</label>
                                 <select id="giftType" name="type" class="form-select rounded-xl border-0"
                                     style="background: var(--bg-light);" required>
+                                    <option value="">— اختر النوع —</option>
                                     @foreach ($typeLabels as $value => $text)
                                         <option value="{{ $value }}">{{ $text }}</option>
                                     @endforeach
@@ -330,13 +343,13 @@
         const fieldActive = document.getElementById('giftActive');
         const createBtn = document.getElementById('openCreateGift');
 
-        const resetForm = () => {
+        const resetForm = (presetType = null) => {
             form.action = "{{ route('dashboard.gifts.store') }}";
             methodInput.value = '';
             modalTitle.textContent = 'إضافة خيار جديد';
             submitBtnText.textContent = 'حفظ الخيار';
             fieldName.value = '';
-            fieldType.value = "{{ \App\Models\GiftOption::TYPE_BOX }}";
+            fieldType.value = presetType !== null && presetType !== '' ? presetType : '';
             fieldPrice.value = '';
             fieldDescription.value = '';
             fieldIcon.value = '';
@@ -344,7 +357,15 @@
             fieldDefault.checked = false;
             fieldActive.checked = true;
             imagePreview.textContent = '';
+            const fileInput = document.getElementById('giftImage');
+            if (fileInput) fileInput.value = '';
         };
+
+        document.querySelectorAll('.btn-add-by-type').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                resetForm(btn.dataset.type || null);
+            });
+        });
 
         document.querySelectorAll('.edit-gift').forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -368,6 +389,6 @@
             });
         });
 
-        createBtn?.addEventListener('click', () => resetForm());
+        createBtn?.addEventListener('click', () => resetForm(null));
     });
 </script>
