@@ -94,6 +94,9 @@
                                                 <span class="material-symbols-outlined" style="font-size:20px;">delete</span>
                                             </button>
                                         </form>
+
+
+                                        
                                     </td>
                                 </tr>
                             @empty
@@ -205,6 +208,7 @@
                                     </tr>
                                 @endforelse
                             </tbody>
+
                         </table>
                     </div>
                 </div>

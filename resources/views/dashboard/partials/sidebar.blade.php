@@ -32,6 +32,11 @@
                         <span class="small fw-semibold">تخصيص الهدية</span>
                     </a>
 
+                    <a class="nav-item-link {{ request()->routeIs('dashboard.filters.*') ? 'active' : '' }}" href="{{ route('dashboard.filters.edit') }}">
+                        <span class="material-symbols-outlined ico">tune</span>
+                        <span class="small fw-semibold">الفلاتر</span>
+                    </a>
+
                     <a class="nav-item-link" href="#">
                         <span class="material-symbols-outlined ico">cloud_upload</span>
                         <span class="small fw-semibold">تحميلات المنتجات</span>
