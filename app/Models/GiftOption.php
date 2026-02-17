@@ -6,14 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GiftOption extends Model
 {
     use HasFactory;
 
     protected $fillable = [
+        'gift_option_type_id',
         'name',
-        'type',
         'description',
         'price',
         'image_path',
@@ -30,29 +31,24 @@ class GiftOption extends Model
         'sort_order' => 'integer',
     ];
 
-    public const TYPE_BOX = 'box';
-    public const TYPE_ADDON = 'addon';
-    public const TYPE_CARD = 'card';
+    public function giftOptionType(): BelongsTo
+    {
+        return $this->belongsTo(GiftOptionType::class, 'gift_option_type_id');
+    }
 
-    /**
-     * Scope active options.
-     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
-    /**
-     * Scope by type.
-     */
-    public function scopeOfType(Builder $query, string $type): Builder
+    public function scopeOfType(Builder $query, $typeOrId): Builder
     {
-        return $query->where('type', $type);
+        if (is_numeric($typeOrId)) {
+            return $query->where('gift_option_type_id', $typeOrId);
+        }
+        return $query->whereHas('giftOptionType', fn (Builder $q) => $q->where('slug', $typeOrId));
     }
 
-    /**
-     * Convenience accessor for public image URL.
-     */
     protected function imageUrl(): Attribute
     {
         return Attribute::get(function () {

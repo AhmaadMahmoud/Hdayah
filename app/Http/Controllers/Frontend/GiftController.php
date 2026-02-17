@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
 use App\Models\GiftOption;
+use App\Models\GiftOptionType;
 use App\Models\Product;
 use App\Models\Order;
 use App\Services\PaymobService;
@@ -18,31 +19,29 @@ class GiftController extends Controller
     {
         $product->load(['images', 'category:id,name']);
 
-        $boxes = GiftOption::active()
-            ->ofType(GiftOption::TYPE_BOX)
-            ->orderBy('sort_order')
+        $types = GiftOptionType::active()
+            ->ordered()
+            ->with(['options' => fn ($q) => $q->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
             ->get();
 
-        $addons = GiftOption::active()
-            ->ofType(GiftOption::TYPE_ADDON)
-            ->orderBy('sort_order')
-            ->get();
-
-        $cards = GiftOption::active()
-            ->ofType(GiftOption::TYPE_CARD)
-            ->orderBy('sort_order')
-            ->get();
-
-        $defaultBoxId = optional($boxes->firstWhere('is_default', true) ?? $boxes->first())->id;
-        $defaultCardId = optional($cards->firstWhere('is_default', true) ?? $cards->first())->id;
+        $defaults = [];
+        $defaultsEnabled = [];
+        foreach ($types as $type) {
+            $opts = $type->options;
+            if ($type->selection_mode === 'single' || $type->selection_mode === 'optional_single') {
+                $default = $opts->firstWhere('is_default', true) ?? $opts->first();
+                $defaults[$type->slug] = $default?->id;
+                $defaultsEnabled[$type->slug] = (bool) $default;
+            } else {
+                $defaults[$type->slug] = $opts->where('is_default', true)->pluck('id')->all();
+            }
+        }
 
         return view('frontend.gifts.index', [
             'product' => $product,
-            'boxes' => $boxes,
-            'addons' => $addons,
-            'cards' => $cards,
-            'defaultBoxId' => $defaultBoxId,
-            'defaultCardId' => $defaultCardId,
+            'types' => $types,
+            'defaults' => $defaults,
+            'defaultsEnabled' => $defaultsEnabled,
         ]);
     }
 
@@ -75,22 +74,7 @@ class GiftController extends Controller
             'total' => $selection['total'],
             'payment_method' => $validated['payment_method'],
             'status' => $validated['payment_method'] === 'cash' ? Order::STATUS_CASH_PENDING : Order::STATUS_PENDING_PAYMENT,
-            'meta' => [
-                'product_price' => $product->price,
-                'box_id' => $selection['box']?->id,
-                'box_name' => $selection['box']?->name,
-                'box_price' => $selection['boxPrice'],
-                'addons' => $selection['addons']->map(fn ($addon) => [
-                    'id' => $addon->id,
-                    'name' => $addon->name,
-                    'price' => $addon->price,
-                ])->values()->all(),
-                'card_id' => $selection['card']?->id,
-                'card_name' => $selection['card']?->name,
-                'card_price' => $selection['cardPrice'],
-                'include_card' => $selection['includeCard'],
-                'message' => $selection['message'],
-            ],
+            'meta' => $selection['meta_for_order'],
         ]);
 
         $orderId = $paymob->createOrder(
@@ -98,9 +82,7 @@ class GiftController extends Controller
             $product->name,
             [
                 'merchant_order_id' => Str::uuid()->toString(),
-                'box_id' => $selection['box']?->id,
-                'addons' => $selection['addons']->pluck('id')->all(),
-                'card_id' => $selection['card']?->id,
+                'selection' => $selection['by_slug'],
                 'message' => $selection['message'],
             ],
             $billing
@@ -142,50 +124,90 @@ class GiftController extends Controller
 
     private function buildSelection(Request $request, Product $product): array
     {
-        $box = GiftOption::active()
-            ->ofType(GiftOption::TYPE_BOX)
-            ->find($request->input('box_selection'));
+        $types = GiftOptionType::active()->ordered()->get();
+        $selectionBySlug = [];
+        $total = (float) $product->price;
+        $metaForOrder = ['types_selection' => []];
 
-        $addons = GiftOption::active()
-            ->ofType(GiftOption::TYPE_ADDON)
-            ->whereIn('id', (array) $request->input('addons', []))
-            ->get();
+        foreach ($types as $type) {
+            $slug = $type->slug;
+            $options = GiftOption::active()
+                ->where('gift_option_type_id', $type->id)
+                ->orderBy('sort_order')
+                ->get();
 
-        $includeCard = $request->boolean('include_card');
+            $idOrIds = null;
+            $enabled = true;
+            if ($slug === 'box') {
+                $idOrIds = $request->input("selection.box") ?? $request->input('box_selection');
+            } elseif ($slug === 'addon') {
+                $idOrIds = $request->input("selection.addon") ?? $request->input('addons', []);
+            } elseif ($slug === 'card') {
+                $enabled = $request->boolean("selection_enabled.card") || $request->boolean('include_card');
+                $idOrIds = $request->input("selection.card") ?? $request->input('gift_card');
+            } else {
+                $idOrIds = $request->input("selection.{$slug}");
+                $enabled = $request->boolean("selection_enabled.{$slug}");
+            }
 
-        $card = $includeCard
-            ? GiftOption::active()
-                ->ofType(GiftOption::TYPE_CARD)
-                ->find($request->input('gift_card'))
-            : null;
-
-        if ($includeCard && ! $card) {
-            $card = GiftOption::active()
-                ->ofType(GiftOption::TYPE_CARD)
-                ->where('is_default', true)
-                ->first()
-                ?? GiftOption::active()
-                    ->ofType(GiftOption::TYPE_CARD)
-                    ->first();
+            if ($type->selection_mode === 'single') {
+                $id = is_array($idOrIds) ? ($idOrIds[0] ?? null) : $idOrIds;
+                $option = $id ? $options->find($id) : null;
+                if (!$option && $options->isNotEmpty()) {
+                    $option = $options->firstWhere('is_default', true) ?? $options->first();
+                }
+                $selectionBySlug[$slug] = $option ? collect([$option]) : collect();
+                $price = $option ? (float) $option->price : 0;
+                $total += $price;
+                $metaForOrder['types_selection'][$slug] = $option ? ['id' => $option->id, 'name' => $option->name, 'price' => $option->price] : null;
+            } elseif ($type->selection_mode === 'multiple') {
+                $ids = is_array($idOrIds) ? $idOrIds : ($idOrIds ? [$idOrIds] : []);
+                $selected = $options->whereIn('id', $ids)->values();
+                $selectionBySlug[$slug] = $selected;
+                $price = $selected->sum('price');
+                $total += $price;
+                $metaForOrder['types_selection'][$slug] = $selected->map(fn ($o) => ['id' => $o->id, 'name' => $o->name, 'price' => $o->price])->all();
+            } else {
+                $id = is_array($idOrIds) ? ($idOrIds[0] ?? null) : $idOrIds;
+                $option = $enabled && $id ? $options->find($id) : null;
+                if ($enabled && !$option && $options->isNotEmpty()) {
+                    $option = $options->firstWhere('is_default', true) ?? $options->first();
+                }
+                $selectionBySlug[$slug] = $option ? collect([$option]) : collect();
+                $price = $option ? (float) $option->price : 0;
+                $total += $price;
+                $metaForOrder['types_selection'][$slug] = $option ? ['id' => $option->id, 'name' => $option->name, 'price' => $option->price] : null;
+            }
         }
 
         $message = $request->input('message', '');
+        $box = $selectionBySlug['box'][0] ?? null;
+        $addons = $selectionBySlug['addon'] ?? collect();
+        $card = $selectionBySlug['card'][0] ?? null;
 
-        $boxPrice = $box?->price ?? 0;
-        $addonsPrice = $addons->sum('price');
-        $cardPrice = $card?->price ?? 0;
-        $total = $product->price + $boxPrice + $addonsPrice + $cardPrice;
+        $metaForOrder['product_price'] = $product->price;
+        $metaForOrder['box_id'] = $box?->id;
+        $metaForOrder['box_name'] = $box?->name;
+        $metaForOrder['box_price'] = $box ? (float) $box->price : 0;
+        $metaForOrder['addons'] = $addons->map(fn ($o) => ['id' => $o->id, 'name' => $o->name, 'price' => $o->price])->values()->all();
+        $metaForOrder['card_id'] = $card?->id;
+        $metaForOrder['card_name'] = $card?->name;
+        $metaForOrder['card_price'] = $card ? (float) $card->price : 0;
+        $metaForOrder['include_card'] = $card !== null;
+        $metaForOrder['message'] = $message;
 
         return [
-            'box' => $box,
-            'addons' => $addons,
-            'card' => $card,
-            'includeCard' => $includeCard,
-            'message' => $message,
-            'boxPrice' => $boxPrice,
-            'addonsPrice' => $addonsPrice,
-            'cardPrice' => $cardPrice,
+            'by_slug' => $selectionBySlug,
             'total' => $total,
+            'message' => $message,
+            'meta_for_order' => $metaForOrder,
+            'box' => $selectionBySlug['box'][0] ?? null,
+            'addons' => $selectionBySlug['addon'] ?? collect(),
+            'card' => $selectionBySlug['card'][0] ?? null,
+            'includeCard' => ($selectionBySlug['card'][0] ?? null) !== null,
+            'boxPrice' => ($selectionBySlug['box'][0] ?? null) ? (float)($selectionBySlug['box'][0]->price) : 0,
+            'addonsPrice' => ($selectionBySlug['addon'] ?? collect())->sum('price'),
+            'cardPrice' => ($selectionBySlug['card'][0] ?? null) ? (float)($selectionBySlug['card'][0]->price) : 0,
         ];
     }
 

@@ -6,15 +6,13 @@
             <header class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
                 <div>
                     <h1 class="display-6 fw-black m-0" style="font-weight: 900;">خيارات التغليف والإهداء</h1>
-                    <p class="text-secondary-custom mb-0">تحكم كامل في صفحة تغليف الهدايا: الصناديق والإضافات وبطاقات الإهداء.</p>
+                    <p class="text-secondary-custom mb-0">تحكم كامل: أضف أو احذف أقسام (صناديق، إضافات، بطاقات...) ثم أضف عناصر تحت كل قسم. كل التغييرات تظهر في صفحة المستخدم.</p>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <button class="btn text-white rounded-xl px-4 py-2" style="background: var(--primary); border: 0;"
-                        data-bs-toggle="modal" data-bs-target="#giftOptionModal" id="openCreateGift">
-                        <span class="material-symbols-outlined align-middle" style="font-size:20px;">add</span>
-                        <span class="fw-bold small align-middle">إضافة خيار جديد</span>
-                    </button>
-                </div>
+                {{-- <button type="button" class="btn text-white rounded-xl px-4 py-2" style="background: var(--primary); border: 0;"
+                    data-bs-toggle="modal" data-bs-target="#giftOptionModal" id="openCreateGift">
+                    <span class="material-symbols-outlined align-middle" style="font-size:20px;">add</span>
+                    <span class="fw-bold small align-middle">إضافة خيار جديد</span>
+                </button> --}}
             </header>
 
             @if (session('status'))
@@ -34,38 +32,101 @@
                 </div>
             @endif
 
-            @php
-                $typeLabels = [
-                    \App\Models\GiftOption::TYPE_BOX => 'صناديق التغليف',
-                    \App\Models\GiftOption::TYPE_ADDON => 'الإضافات',
-                    \App\Models\GiftOption::TYPE_CARD => 'بطاقات الإهداء',
-                ];
-            @endphp
+            {{-- إدارة الأنواع (الأقسام) --}}
+            <div class="panel rounded-xl shadow-sm overflow-hidden mb-4">
+                <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-soft flex-wrap gap-2" style="background: var(--bg-light);">
+                    <div>
+                        <h2 class="h5 fw-bold mb-0">أنواع خيارات الهدية (الأقسام)</h2>
+                        <div class="small text-secondary-custom">يمكنك إضافة قسم جديد (مثل: ورود، شوكولاتة) أو حذف قسم. النوع النشط فقط يظهر في صفحة المستخدم.</div>
+                    </div>
+                    <button type="button" class="btn btn-sm text-white rounded-xl px-3 py-2" style="background: var(--primary); border: 0;"
+                        data-bs-toggle="modal" data-bs-target="#giftTypeModal" id="openCreateType">
+                        <span class="material-symbols-outlined align-middle" style="font-size:18px;">add</span>
+                        <span class="small fw-bold align-middle">إضافة نوع جديد</span>
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle m-0 text-end">
+                        <thead>
+                            <tr style="background: var(--bg-light);">
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">الاسم</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">المعرّف (slug)</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">طريقة الاختيار</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">الترتيب</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold">الحالة</th>
+                                <th class="px-4 py-3 text-secondary-custom small fw-bold text-center">خيارات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($types as $t)
+                                <tr>
+                                    <td class="px-4 py-3 fw-bold">{{ $t->name }}</td>
+                                    <td class="px-4 py-3 text-secondary-custom small">{{ $t->slug }}</td>
+                                    <td class="px-4 py-3 small">
+                                        @if($t->selection_mode === 'single') اختيار واحد
+                                        @elseif($t->selection_mode === 'multiple') اختيار متعدد
+                                        @else اختياري + واحد
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 fw-semibold">{{ $t->sort_order }}</td>
+                                    <td class="px-4 py-3">
+                                        @if ($t->is_active)
+                                            <span class="badge rounded-pill" style="background:#dcfce7; color:#15803d;">نشط</span>
+                                        @else
+                                            <span class="badge rounded-pill" style="background:#fee2e2; color:#b91c1c;">مخفي</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button type="button" class="icon-btn edit-type-btn" data-bs-toggle="modal" data-bs-target="#giftTypeModal"
+                                            data-action="{{ route('dashboard.gift-types.update', $t) }}"
+                                            data-name="{{ $t->name }}"
+                                            data-slug="{{ $t->slug }}"
+                                            data-mode="{{ $t->selection_mode }}"
+                                            data-sort="{{ $t->sort_order }}"
+                                            data-active="{{ $t->is_active ? '1' : '0' }}">
+                                            <span class="material-symbols-outlined" style="font-size:20px;">edit</span>
+                                        </button>
+                                        <form method="POST" action="{{ route('dashboard.gift-types.destroy', $t) }}" class="d-inline"
+                                            onsubmit="return confirm('حذف هذا النوع سيحذف جميع عناصره. متأكد؟');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="icon-btn danger">
+                                                <span class="material-symbols-outlined" style="font-size:20px;">delete</span>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-4 py-4 text-center text-secondary-custom">لا توجد أنواع. أضف نوعاً (مثل صناديق التغليف) ثم أضف عناصر تحته.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-            <p class="small text-secondary-custom mb-4">العناصر <strong>النشطة</strong> فقط تظهر في صفحة المستخدم (تغليف الهدية). استخدم "عرض في الموقع" أو "مخفي" للتحكم في الظهور.</p>
+            <p class="small text-secondary-custom mb-4">العناصر <strong>النشطة</strong> فقط تظهر في صفحة المستخدم. استخدم "عرض في الموقع" أو "مخفي" للتحكم.</p>
 
-            @foreach ($typeLabels as $type => $label)
-                @php
-                    $addLabel = $type === \App\Models\GiftOption::TYPE_BOX ? 'إضافة صندوق' : ($type === \App\Models\GiftOption::TYPE_ADDON ? 'إضافة إضافة' : 'إضافة بطاقة');
-                @endphp
-                <div class="panel rounded-xl shadow-sm overflow-hidden mb-4" data-gift-type="{{ $type }}">
+            {{-- عناصر كل نوع --}}
+            @foreach ($types as $type)
+                <div class="panel rounded-xl shadow-sm overflow-hidden mb-4">
                     <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-soft flex-wrap gap-2" style="background: var(--bg-light);">
                         <div>
-                            <h3 class="h5 fw-bold mb-0">{{ $label }}</h3>
-                            <div class="small text-secondary-custom">إدارة العناصر المعروضة في خطوة التغليف.</div>
+                            <h3 class="h5 fw-bold mb-0">{{ $type->name }}</h3>
+                            <div class="small text-secondary-custom">إدارة العناصر المعروضة تحت هذا القسم.</div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <button type="button" class="btn btn-sm text-white rounded-xl px-3 py-2 btn-add-by-type" style="background: var(--primary); border: 0;"
-                                data-type="{{ $type }}" data-bs-toggle="modal" data-bs-target="#giftOptionModal">
+                                data-type-id="{{ $type->id }}" data-type-name="{{ $type->name }}" data-bs-toggle="modal" data-bs-target="#giftOptionModal">
                                 <span class="material-symbols-outlined align-middle" style="font-size:18px;">add</span>
-                                <span class="small fw-bold align-middle">{{ $addLabel }}</span>
+                                <span class="small fw-bold align-middle">إضافة عنصر</span>
                             </button>
                             <span class="badge rounded-pill" style="background:#fef3f3; color:var(--primary);">
-                                {{ ($options[$type] ?? collect())->count() }} عنصر
+                                {{ $type->options->count() }} عنصر
                             </span>
                         </div>
                     </div>
-
                     <div class="table-responsive">
                         <table class="table table-hover align-middle m-0 text-end">
                             <thead>
@@ -80,7 +141,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($options[$type] ?? [] as $option)
+                                @forelse ($type->options as $option)
                                     <tr>
                                         <td class="px-4 py-3">
                                             <div class="fw-bold">{{ $option->name }}</div>
@@ -115,22 +176,21 @@
                                             </div>
                                         </td>
                                         <td class="px-4 py-3 text-center">
-                                            <button class="icon-btn edit-gift" type="button" data-bs-toggle="modal"
-                                                data-bs-target="#giftOptionModal"
+                                            <button class="icon-btn edit-gift" type="button" data-bs-toggle="modal" data-bs-target="#giftOptionModal"
                                                 data-action="{{ route('dashboard.gifts.update', $option) }}"
                                                 data-name="{{ $option->name }}"
-                                                data-type="{{ $option->type }}"
+                                                data-type-id="{{ $option->gift_option_type_id }}"
                                                 data-price="{{ $option->price }}"
-                                                data-description="{{ $option->description }}"
-                                                data-icon="{{ $option->icon }}"
+                                                data-description="{{ $option->description ?? '' }}"
+                                                data-icon="{{ $option->icon ?? '' }}"
                                                 data-sort="{{ $option->sort_order }}"
                                                 data-default="{{ $option->is_default ? '1' : '0' }}"
                                                 data-active="{{ $option->is_active ? '1' : '0' }}"
-                                                data-image="{{ $option->image_url }}">
+                                                data-image="{{ $option->image_url ?? '' }}">
                                                 <span class="material-symbols-outlined" style="font-size:20px;">edit</span>
                                             </button>
-                                            <form method="POST" action="{{ route('dashboard.gifts.destroy', $option) }}"
-                                                class="d-inline" onsubmit="return confirm('هل تريد حذف هذا الخيار؟');">
+                                            <form method="POST" action="{{ route('dashboard.gifts.destroy', $option) }}" class="d-inline"
+                                                onsubmit="return confirm('هل تريد حذف هذا الخيار؟');">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button class="icon-btn danger" type="submit">
@@ -141,9 +201,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-4 py-4 text-center text-secondary-custom">
-                                            لا توجد عناصر لهذا القسم بعد.
-                                        </td>
+                                        <td colspan="7" class="px-4 py-4 text-center text-secondary-custom">لا توجد عناصر لهذا القسم بعد.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -151,6 +209,56 @@
                     </div>
                 </div>
             @endforeach
+        </div>
+    </div>
+
+    {{-- مودال نوع جديد / تعديل نوع --}}
+    <div class="modal fade" id="giftTypeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-2xl panel">
+                <form id="giftTypeForm" method="POST" action="{{ route('dashboard.gift-types.store') }}">
+                    @csrf
+                    <input type="hidden" name="_method" id="giftTypeFormMethod" value="">
+                    <div class="modal-header border-bottom border-soft">
+                        <h5 class="modal-title fw-black" id="giftTypeModalTitle" style="font-weight: 900;">إضافة نوع جديد</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold">الاسم (يظهر للمستخدم)</label>
+                                <input type="text" id="typeName" name="name" class="form-control rounded-xl border-0" style="background: var(--bg-light);" placeholder="مثال: صناديق التغليف" required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold">المعرّف (slug، إنجليزي فقط)</label>
+                                <input type="text" id="typeSlug" name="slug" class="form-control rounded-xl border-0" style="background: var(--bg-light);" placeholder="مثال: box" required pattern="[a-z0-9_]+">
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold">طريقة الاختيار</label>
+                                <select id="typeMode" name="selection_mode" class="form-select rounded-xl border-0" style="background: var(--bg-light);" required>
+                                    <option value="single">اختيار واحد (مثل صندوق)</option>
+                                    <option value="multiple">اختيار متعدد (مثل إضافات)</option>
+                                    <option value="optional_single">اختياري + واحد (مثل كارت إهداء)</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold">ترتيب العرض</label>
+                                <input type="number" id="typeSort" name="sort_order" min="0" class="form-control rounded-xl border-0" style="background: var(--bg-light);" value="0">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="typeActive" name="is_active" value="1" checked>
+                                    <label class="form-check-label fw-semibold" for="typeActive">نشط (يظهر في صفحة المستخدم)</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top border-soft">
+                        <button type="button" class="btn btn-outline-secondary rounded-xl px-4" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn text-white rounded-xl px-4" style="background: var(--primary); border:0;">حفظ</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -173,12 +281,12 @@
                                     style="background: var(--bg-light);" placeholder="مثال: صندوق وردي فاخر" required />
                             </div>
                             <div class="col-12 col-md-3">
-                                <label class="form-label fw-bold">النوع</label>
-                                <select id="giftType" name="type" class="form-select rounded-xl border-0"
+                                <label class="form-label fw-bold">النوع (القسم)</label>
+                                <select id="giftType" name="gift_option_type_id" class="form-select rounded-xl border-0"
                                     style="background: var(--bg-light);" required>
                                     <option value="">— اختر النوع —</option>
-                                    @foreach ($typeLabels as $value => $text)
-                                        <option value="{{ $value }}">{{ $text }}</option>
+                                    @foreach ($types as $t)
+                                        <option value="{{ $t->id }}">{{ $t->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -341,15 +449,14 @@
         const fieldSort = document.getElementById('giftSort');
         const fieldDefault = document.getElementById('giftDefault');
         const fieldActive = document.getElementById('giftActive');
-        const createBtn = document.getElementById('openCreateGift');
 
-        const resetForm = (presetType = null) => {
+        const resetForm = (presetTypeId = null) => {
             form.action = "{{ route('dashboard.gifts.store') }}";
             methodInput.value = '';
             modalTitle.textContent = 'إضافة خيار جديد';
             submitBtnText.textContent = 'حفظ الخيار';
             fieldName.value = '';
-            fieldType.value = presetType !== null && presetType !== '' ? presetType : '';
+            fieldType.value = presetTypeId !== null && presetTypeId !== '' ? String(presetTypeId) : '';
             fieldPrice.value = '';
             fieldDescription.value = '';
             fieldIcon.value = '';
@@ -363,7 +470,7 @@
 
         document.querySelectorAll('.btn-add-by-type').forEach((btn) => {
             btn.addEventListener('click', () => {
-                resetForm(btn.dataset.type || null);
+                resetForm(btn.dataset.typeId || null);
             });
         });
 
@@ -374,7 +481,7 @@
                 modalTitle.textContent = 'تعديل خيار التغليف';
                 submitBtnText.textContent = 'تحديث البيانات';
                 fieldName.value = btn.dataset.name || '';
-                fieldType.value = btn.dataset.type || "{{ \App\Models\GiftOption::TYPE_BOX }}";
+                fieldType.value = btn.dataset.typeId || '';
                 fieldPrice.value = btn.dataset.price || '';
                 fieldDescription.value = btn.dataset.description || '';
                 fieldIcon.value = btn.dataset.icon || '';
@@ -389,6 +496,38 @@
             });
         });
 
-        createBtn?.addEventListener('click', () => resetForm(null));
+        document.getElementById('openCreateGift')?.addEventListener('click', () => resetForm(null));
+
+        // نوع الهدية (إضافة / تعديل)
+        const typeForm = document.getElementById('giftTypeForm');
+        const typeMethodInput = document.getElementById('giftTypeFormMethod');
+        const typeModalTitle = document.getElementById('giftTypeModalTitle');
+        const typeName = document.getElementById('typeName');
+        const typeSlug = document.getElementById('typeSlug');
+        const typeMode = document.getElementById('typeMode');
+        const typeSort = document.getElementById('typeSort');
+        const typeActive = document.getElementById('typeActive');
+        document.getElementById('openCreateType')?.addEventListener('click', () => {
+            typeForm.action = "{{ route('dashboard.gift-types.store') }}";
+            typeMethodInput.value = '';
+            typeModalTitle.textContent = 'إضافة نوع جديد';
+            typeName.value = '';
+            typeSlug.value = '';
+            typeMode.value = 'single';
+            typeSort.value = '0';
+            typeActive.checked = true;
+        });
+        document.querySelectorAll('.edit-type-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                typeForm.action = btn.dataset.action;
+                typeMethodInput.value = 'PATCH';
+                typeModalTitle.textContent = 'تعديل النوع';
+                typeName.value = btn.dataset.name || '';
+                typeSlug.value = btn.dataset.slug || '';
+                typeMode.value = btn.dataset.mode || 'single';
+                typeSort.value = btn.dataset.sort || '0';
+                typeActive.checked = btn.dataset.active !== '0';
+            });
+        });
     });
 </script>

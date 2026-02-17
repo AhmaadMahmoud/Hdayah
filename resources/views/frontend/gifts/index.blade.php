@@ -240,13 +240,26 @@
     </style>
 
     @php
-        $selectedBox = $boxes->firstWhere('id', $defaultBoxId);
-        $selectedCard = $cards->firstWhere('id', $defaultCardId);
-        $defaultAddons = $addons->where('is_default', true);
-        $boxPrice = $selectedBox?->price ?? 0;
-        $addonsPrice = $defaultAddons->sum('price');
-        $cardPrice = $selectedCard?->price ?? 0;
-        $total = $product->price + $boxPrice + $addonsPrice + $cardPrice;
+        $total = (float) $product->price;
+        $pricesBySlug = [];
+        foreach ($types as $type) {
+            $slug = $type->slug;
+            $def = $defaults[$slug] ?? null;
+            if ($type->selection_mode === 'multiple') {
+                $ids = is_array($def) ? $def : [];
+                $opts = $type->options->whereIn('id', $ids);
+            } elseif ($type->selection_mode === 'optional_single') {
+                $enabled = $defaultsEnabled[$slug] ?? false;
+                $id = is_array($def) ? null : $def;
+                $opts = ($enabled && $id) ? $type->options->where('id', $id) : $type->options->take(0);
+            } else {
+                $id = is_array($def) ? null : $def;
+                $opts = $id ? $type->options->where('id', $id) : $type->options->take(0);
+            }
+            $p = $opts->sum('price');
+            $pricesBySlug[$slug] = $p;
+            $total += $p;
+        }
     @endphp
 
     <div class="container py-4 py-md-5">
@@ -284,147 +297,119 @@
                         </div>
                     </div>
 
-                    <section class="mb-5">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center font-numbers fw-bold"
-                                style="width:32px;height:32px;background: rgba(238,43,91,.10); color: var(--primary);">
-                                1
-                            </div>
-                            <h3 class="h4 fw-bold mb-0">اختر صندوق التغليف</h3>
-                        </div>
-
-                        <div class="row g-3">
-                            @forelse ($boxes as $box)
-                                <div class="col-12 col-sm-6 col-md-4">
-                                    <label class="choice-radio w-100 position-relative">
-                                        <input type="radio" name="box_selection" value="{{ $box->id }}" data-price="{{ $box->price }}"
-                                            @checked($box->id === $defaultBoxId)>
-                                        <div class="choice-card p-3 h-100">
-                                            <div class="box-media mb-3">
-                                                @if ($box->image_url)
-                                                    <img alt="{{ $box->name }}" src="{{ $box->image_url }}">
-                                                @else
-                                                    <div class="w-100 h-100 d-flex align-items-center justify-content-center text-secondary">
-                                                        <span class="material-symbols-outlined">redeem</span>
-                                                    </div>
-                                                @endif
-                                                <div class="img-price font-numbers">{{ number_format($box->price, 2) }} ج.م</div>
-                                            </div>
-
-                                            <div class="text-center">
-                                                <div class="fw-bold">{{ $box->name }}</div>
-                                                @if ($box->description)
-                                                    <div class="small soft-text">{{ $box->description }}</div>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </label>
-                                </div>
-                            @empty
-                                <div class="col-12">
-                                    <div class="alert alert-light border text-secondary m-0 rounded-2xl">
-                                        لا توجد خيارات لصناديق التغليف متاحة حالياً.
+                    @foreach ($types as $step => $type)
+                        <section class="mb-5" data-type-slug="{{ $type->slug }}">
+                            <div class="d-flex align-items-center gap-3 mb-3 @if($type->selection_mode === 'optional_single') justify-content-between flex-wrap @endif">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center font-numbers fw-bold"
+                                        style="width:32px;height:32px;background: rgba(238,43,91,.10); color: var(--primary);">
+                                        {{ $step + 1 }}
                                     </div>
+                                    <h3 class="h4 fw-bold mb-0">{{ $type->name }}</h3>
                                 </div>
-                            @endforelse
-                        </div>
-                    </section>
-
-                    <section class="mb-5">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center font-numbers fw-bold"
-                                style="width:32px;height:32px;background: rgba(238,43,91,.10); color: var(--primary);">
-                                2
-                            </div>
-                            <h3 class="h4 fw-bold mb-0">الإضافات</h3>
-                        </div>
-
-                        <div class="row g-3 row-cols-2 row-cols-sm-3">
-                            @forelse ($addons as $addon)
-                                <div class="col">
-                                    <label class="choice-check w-100">
-                                        <input type="checkbox" name="addons[]" value="{{ $addon->id }}" data-price="{{ $addon->price }}"
-                                            @checked($addon->is_default)>
-                                        <div class="choice-card p-3 text-center h-100">
-                                            <div class="addon-icon mx-auto mb-2">
-                                                @if ($addon->icon)
-                                                    <span class="material-symbols-outlined">{{ $addon->icon }}</span>
-                                                @else
-                                                    <span class="material-symbols-outlined">auto_awesome</span>
-                                                @endif
-                                            </div>
-                                            <div class="fw-bold small">{{ $addon->name }}</div>
-                                            @if ($addon->description)
-                                                <div class="small soft-text">{{ $addon->description }}</div>
-                                            @endif
-                                            <div class="small soft-text font-numbers mt-1">+{{ number_format($addon->price, 2) }} ج.م</div>
-                                        </div>
-                                    </label>
-                                </div>
-                            @empty
-                                <div class="col-12">
-                                    <div class="alert alert-light border text-secondary m-0 rounded-2xl">
-                                        لا توجد إضافات متاحة.
+                                @if ($type->selection_mode === 'optional_single')
+                                    <div class="form-check form-switch m-0">
+                                        <input class="form-check-input selection-enabled" type="checkbox" id="sel_enabled_{{ $type->slug }}" name="selection_enabled[{{ $type->slug }}]" value="1" data-slug="{{ $type->slug }}" @checked($defaultsEnabled[$type->slug] ?? false)>
+                                        <label class="form-check-label small soft-text" for="sel_enabled_{{ $type->slug }}">تضمين</label>
                                     </div>
-                                </div>
-                            @endforelse
-                        </div>
-                    </section>
-
-                    <section class="mb-5">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="rounded-circle d-flex align-items-center justify-content-center font-numbers fw-bold"
-                                    style="width:32px;height:32px;background: rgba(238,43,91,.10); color: var(--primary);">
-                                    3
-                                </div>
-                                <h3 class="h4 fw-bold mb-0">كارت الإهداء</h3>
+                                @endif
                             </div>
 
-                            <div class="form-check form-switch m-0">
-                                <input class="form-check-input" type="checkbox" id="giftCardSwitch" name="include_card" value="1"
-                                    @checked($defaultCardId)>
-                                <label class="form-check-label small soft-text" for="giftCardSwitch">تضمين كارت إهداء</label>
-                            </div>
-                        </div>
-
-                        <div class="bg-white border rounded-2xl p-4">
-                            <div class="mb-3">
-                                <div class="fw-bold small mb-2">اختر تصميم الكارت</div>
-                                <div class="d-flex gap-3 overflow-auto pb-2">
-                                    @forelse ($cards as $card)
-                                        @php
-                                            $isActive = $card->id === $defaultCardId;
-                                        @endphp
-                                        <label class="card-thumb-label" style="cursor:pointer;">
-                                            <input type="radio" name="gift_card" value="{{ $card->id }}" class="d-none" data-price="{{ $card->price }}"
-                                                @checked($isActive)>
-                                            <div class="card-thumb {{ $isActive ? 'is-active' : '' }}" data-card-thumb>
-                                                @if ($card->image_url)
-                                                    <img alt="{{ $card->name }}" src="{{ $card->image_url }}">
-                                                @else
-                                                    <div class="w-100 h-100 d-flex align-items-center justify-content-center soft-text fw-bold">
-                                                        {{ $card->name }}
+                            @if ($type->selection_mode === 'single')
+                                <div class="row g-3">
+                                    @forelse ($type->options as $opt)
+                                        <div class="col-12 col-sm-6 col-md-4">
+                                            <label class="choice-radio w-100 position-relative">
+                                                <input type="radio" name="selection[{{ $type->slug }}]" value="{{ $opt->id }}" data-price="{{ $opt->price }}" data-slug="{{ $type->slug }}"
+                                                    @checked($opt->id === ($defaults[$type->slug] ?? null))>
+                                                <div class="choice-card p-3 h-100">
+                                                    <div class="box-media mb-3">
+                                                        @if ($opt->image_url)
+                                                            <img alt="{{ $opt->name }}" src="{{ $opt->image_url }}">
+                                                        @else
+                                                            <div class="w-100 h-100 d-flex align-items-center justify-content-center text-secondary">
+                                                                <span class="material-symbols-outlined">redeem</span>
+                                                            </div>
+                                                        @endif
+                                                        <div class="img-price font-numbers">{{ number_format($opt->price, 2) }} ر.س</div>
                                                     </div>
-                                                @endif
-                                                @if ($card->price > 0)
-                                                    <span class="img-price font-numbers">{{ number_format($card->price, 2) }} ج.م</span>
-                                                @endif
-                                            </div>
-                                        </label>
+                                                    <div class="text-center">
+                                                        <div class="fw-bold">{{ $opt->name }}</div>
+                                                        @if ($opt->description)
+                                                            <div class="small soft-text">{{ $opt->description }}</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
                                     @empty
-                                        <div class="text-secondary small">لا توجد كروت متاحة.</div>
+                                        <div class="col-12">
+                                            <div class="alert alert-light border text-secondary m-0 rounded-2xl">لا توجد خيارات متاحة.</div>
+                                        </div>
                                     @endforelse
                                 </div>
-                            </div>
-
-                            <div>
-                                <label class="form-label fw-bold small" for="message">رسالة الإهداء</label>
-                                <div class="position-relative">
-                                    <textarea id="message" name="message" class="form-control border-0 rounded-xl p-3" style="background: var(--soft); resize:none;" rows="4" placeholder="اكتب رسالتك الخاصة هنا..." maxlength="200"></textarea>
-                                    <div class="position-absolute bottom-0 start-0 m-2 small soft-text font-numbers" data-message-count>0/200
+                            @elseif ($type->selection_mode === 'multiple')
+                                <div class="row g-3 row-cols-2 row-cols-sm-3">
+                                    @forelse ($type->options as $opt)
+                                        @php $defIds = $defaults[$type->slug] ?? []; $checked = in_array($opt->id, is_array($defIds) ? $defIds : []); @endphp
+                                        <div class="col">
+                                            <label class="choice-check w-100">
+                                                <input type="checkbox" name="selection[{{ $type->slug }}][]" value="{{ $opt->id }}" data-price="{{ $opt->price }}" data-slug="{{ $type->slug }}" @checked($checked)>
+                                                <div class="choice-card p-3 text-center h-100">
+                                                    <div class="addon-icon mx-auto mb-2">
+                                                        @if ($opt->icon)
+                                                            <span class="material-symbols-outlined">{{ $opt->icon }}</span>
+                                                        @else
+                                                            <span class="material-symbols-outlined">auto_awesome</span>
+                                                        @endif
+                                                    </div>
+                                                    <div class="fw-bold small">{{ $opt->name }}</div>
+                                                    @if ($opt->description)
+                                                        <div class="small soft-text">{{ $opt->description }}</div>
+                                                    @endif
+                                                    <div class="small soft-text font-numbers mt-1">+{{ number_format($opt->price, 2) }} ر.س</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    @empty
+                                        <div class="col-12">
+                                            <div class="alert alert-light border text-secondary m-0 rounded-2xl">لا توجد خيارات متاحة.</div>
+                                        </div>
+                                    @endforelse
+                                </div>
+                            @else
+                                <div class="bg-white border rounded-2xl p-4">
+                                    <div class="d-flex gap-3 overflow-auto pb-2 flex-wrap">
+                                        @forelse ($type->options as $opt)
+                                            @php $isActive = ($defaultsEnabled[$type->slug] ?? false) && ($defaults[$type->slug] ?? null) == $opt->id; @endphp
+                                            <label class="card-thumb-label" style="cursor:pointer;">
+                                                <input type="radio" name="selection[{{ $type->slug }}]" value="{{ $opt->id }}" class="d-none selection-radio-opt" data-price="{{ $opt->price }}" data-slug="{{ $type->slug }}" @checked($isActive)>
+                                                <div class="card-thumb {{ $isActive ? 'is-active' : '' }}" data-card-thumb data-slug="{{ $type->slug }}">
+                                                    @if ($opt->image_url)
+                                                        <img alt="{{ $opt->name }}" src="{{ $opt->image_url }}">
+                                                    @else
+                                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center soft-text fw-bold">{{ $opt->name }}</div>
+                                                    @endif
+                                                    @if ($opt->price > 0)
+                                                        <span class="img-price font-numbers">{{ number_format($opt->price, 2) }} ر.س</span>
+                                                    @endif
+                                                </div>
+                                            </label>
+                                        @empty
+                                            <span class="text-secondary small">لا توجد خيارات.</span>
+                                        @endforelse
                                     </div>
                                 </div>
+                            @endif
+                        </section>
+                    @endforeach
+
+                    <section class="mb-5">
+                        <div class="bg-white border rounded-2xl p-4">
+                            <label class="form-label fw-bold small" for="message">رسالة الإهداء</label>
+                            <div class="position-relative">
+                                <textarea id="message" name="message" class="form-control border-0 rounded-xl p-3" style="background: var(--soft); resize:none;" rows="4" placeholder="اكتب رسالتك الخاصة هنا..." maxlength="200"></textarea>
+                                <div class="position-absolute bottom-0 start-0 m-2 small soft-text font-numbers" data-message-count>0/200</div>
                             </div>
                         </div>
                     </section>
@@ -445,29 +430,18 @@
                             <div class="p-4">
                                 <div class="d-flex justify-content-between align-items-center small mb-3">
                                     <span class="soft-text">سعر المنتج</span>
-                                    <span class="fw-bold font-numbers">{{ number_format($product->price, 2) }} ج.م</span>
+                                    <span class="fw-bold font-numbers">{{ number_format($product->price, 2) }} ر.س</span>
                                 </div>
-                                @if ($selectedBox)
-                                    <div class="d-flex justify-content-between align-items-center small mb-3">
-                                        <span class="soft-text">صندوق التغليف ({{ $selectedBox->name }})</span>
-                                        <span class="fw-bold font-numbers" data-summary-box>{{ number_format($boxPrice, 2) }} ج.م</span>
+                                @foreach ($types as $type)
+                                    <div class="d-flex justify-content-between align-items-center small mb-3" data-summary-row="{{ $type->slug }}">
+                                        <span class="soft-text">{{ $type->name }}</span>
+                                        <span class="fw-bold font-numbers" data-summary-price="{{ $type->slug }}">{{ number_format($pricesBySlug[$type->slug] ?? 0, 2) }} ر.س</span>
                                     </div>
-                                @endif
-                                <div class="d-flex justify-content-between align-items-center small mb-3">
-                                    <span class="soft-text">الإضافات</span>
-                                    <span class="fw-bold font-numbers" data-summary-addons>{{ number_format($addonsPrice, 2) }} ج.م</span>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center small mb-3">
-                                    <span class="soft-text">كارت الإهداء</span>
-                                    <span class="fw-bold font-numbers" data-summary-card>{{ number_format($cardPrice, 2) }} ج.م</span>
-                                </div>
-
+                                @endforeach
                                 <hr>
-
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="fw-bold fs-5">الإجمالي</span>
-                                    <span class="fw-black fs-2 font-numbers" data-summary-total
-                                        style="color:var(--primary); font-weight:900;">{{ number_format($total, 2) }} ج.م</span>
+                                    <span class="fw-black fs-2 font-numbers" data-summary-total style="color:var(--primary); font-weight:900;">{{ number_format($total, 2) }} ر.س</span>
                                 </div>
                             </div>
 
@@ -496,98 +470,74 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const basePrice = {{ $product->price }};
+        const basePrice = {{ (float) $product->price }};
+        const slugs = @json($types->pluck('slug'));
         const summaryTotal = document.querySelector('[data-summary-total]');
-        const summaryBox = document.querySelector('[data-summary-box]');
-        const summaryAddons = document.querySelector('[data-summary-addons]');
-        const summaryCard = document.querySelector('[data-summary-card]');
-        const cardSwitch = document.getElementById('giftCardSwitch');
         const messageField = document.getElementById('message');
         const messageCount = document.querySelector('[data-message-count]');
-
-        const fmt = (n) => n.toFixed(2) + ' ج.م';
+        const fmt = (n) => n.toFixed(2) + ' ر.س';
 
         const recalc = () => {
-            const box = document.querySelector('input[name="box_selection"]:checked');
-            const card = document.querySelector('input[name="gift_card"]:checked');
-            const addons = Array.from(document.querySelectorAll('input[name="addons[]"]:checked'));
-
-            const boxPrice = box ? Number(box.dataset.price || 0) : 0;
-            const cardPrice = cardSwitch?.checked ? Number(card?.dataset.price || 0) : 0;
-            const addonsPrice = addons.reduce((sum, el) => sum + Number(el.dataset.price || 0), 0);
-            const total = basePrice + boxPrice + cardPrice + addonsPrice;
-
-            if (summaryBox) summaryBox.textContent = fmt(boxPrice);
-            if (summaryAddons) summaryAddons.textContent = fmt(addonsPrice);
-            if (summaryCard) summaryCard.textContent = fmt(cardSwitch?.checked ? cardPrice : 0);
+            let total = basePrice;
+            slugs.forEach((slug) => {
+                const enabled = document.querySelector(`input[name="selection_enabled[${slug}]"]`);
+                const enabledChecked = !enabled || enabled.checked;
+                let price = 0;
+                const radios = document.querySelectorAll(`input[name="selection[${slug}]"]`);
+                const checkboxes = document.querySelectorAll(`input[name="selection[${slug}][]"]:checked`);
+                if (radios.length) {
+                    const r = document.querySelector(`input[name="selection[${slug}]"]:checked`);
+                    if (enabledChecked && r) price = Number(r.dataset.price || 0);
+                } else if (checkboxes.length) {
+                    checkboxes.forEach((el) => { price += Number(el.dataset.price || 0); });
+                }
+                total += price;
+                const el = document.querySelector(`[data-summary-price="${slug}"]`);
+                if (el) el.textContent = fmt(price);
+            });
             if (summaryTotal) summaryTotal.textContent = fmt(total);
         };
 
-        document.querySelectorAll('input[name="box_selection"]').forEach((input) => {
-            const card = input.closest('label')?.querySelector('.choice-card');
-            if (!card) return;
+        document.querySelectorAll('input[data-slug]').forEach((input) => {
+            input.addEventListener('change', recalc);
+        });
+        document.querySelectorAll('.selection-enabled').forEach((el) => {
+            el.addEventListener('change', recalc);
+        });
 
+        document.querySelectorAll('input[type="radio"][name^="selection["]').forEach((input) => {
+            const slug = input.dataset.slug;
+            if (!slug) return;
+            const card = input.closest('label')?.querySelector('.choice-card, .card-thumb');
+            if (!card) return;
             card.addEventListener('click', (e) => {
                 const wasChecked = input.checked;
                 e.preventDefault();
-
                 if (wasChecked) {
-                    input.checked = false;
+                    const enabled = document.querySelector(`input[name="selection_enabled[${slug}]"]`);
+                    if (enabled?.checked) { input.checked = false; }
+                    else { return; }
                 } else {
-                    document.querySelectorAll('input[name="box_selection"]').forEach((i) => (i.checked = false));
+                    document.querySelectorAll(`input[name="selection[${slug}]"]`).forEach((i) => (i.checked = false));
                     input.checked = true;
                 }
-
+                document.querySelectorAll(`[data-card-thumb][data-slug="${slug}"]`).forEach((t) => t.classList.remove('is-active'));
+                const thumb = input.closest('label')?.querySelector('[data-card-thumb]');
+                if (thumb) thumb.classList.add('is-active');
                 recalc();
             });
         });
 
-        const cardThumbs = document.querySelectorAll('[data-card-thumb]');
-
-        const syncCardThumbs = () => {
-            const selected = document.querySelector('input[name="gift_card"]:checked');
-            cardThumbs.forEach((thumb) => thumb.classList.remove('is-active'));
-            if (selected) {
-                const thumb = selected.closest('label')?.querySelector('[data-card-thumb]');
-                thumb?.classList.add('is-active');
-            }
-        };
-
-        const makeToggleableRadio = (name, onChange) => {
-            const inputs = Array.from(document.querySelectorAll(`input[name="${name}"]`));
-            inputs.forEach((input) => {
-                input.addEventListener('mousedown', () => {
-                    input.dataset.wasChecked = input.checked ? '1' : '';
-                });
-                input.addEventListener('click', (e) => {
-                    const wasChecked = input.dataset.wasChecked === '1';
-                    inputs.forEach((i) => {
-                        if (i !== input) i.dataset.wasChecked = '';
-                    });
-                    if (wasChecked) {
-                        input.checked = false;
-                        input.dataset.wasChecked = '';
-                        onChange();
-                        e.preventDefault();
-                    }
-                });
-                input.addEventListener('change', () => {
-                    inputs.forEach((i) => (i.dataset.wasChecked = i === input && input.checked ? '1' : ''));
-                    onChange();
-                });
+        document.querySelectorAll('[data-card-thumb]').forEach((thumb) => {
+            const slug = thumb.dataset.slug;
+            if (!slug) return;
+            const radio = thumb.closest('label')?.querySelector('input[type="radio"]');
+            if (!radio) return;
+            radio.addEventListener('change', () => {
+                document.querySelectorAll(`[data-card-thumb][data-slug="${slug}"]`).forEach((t) => t.classList.remove('is-active'));
+                thumb.classList.add('is-active');
             });
-        };
-
-        makeToggleableRadio('gift_card', () => {
-            syncCardThumbs();
-            recalc();
         });
-        makeToggleableRadio('box_selection', recalc);
-
-        document.querySelectorAll('input[name="addons[]"]').forEach((el) => {
-            el.addEventListener('change', recalc);
-        });
-        cardSwitch?.addEventListener('change', recalc);
 
         if (messageField && messageCount) {
             messageField.addEventListener('input', () => {
@@ -595,7 +545,6 @@
             });
         }
 
-        syncCardThumbs();
         recalc();
     });
 </script>
