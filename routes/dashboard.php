@@ -5,6 +5,7 @@ use App\Http\Controllers\Dashboard\UserController;
 use App\Http\Controllers\Dashboard\ProductController;
 use App\Http\Controllers\Dashboard\CategoryController;
 use App\Http\Controllers\Dashboard\GiftOptionController;
+use App\Http\Controllers\Dashboard\GiftOptionTypeController;
 use App\Models\Order;
 
 Route::middleware(['auth', 'admin'])->group(function () {
@@ -37,6 +38,9 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/dashboard/gifts', [GiftOptionController::class, 'store'])->name('dashboard.gifts.store');
     Route::patch('/dashboard/gifts/{giftOption}', [GiftOptionController::class, 'update'])->name('dashboard.gifts.update');
     Route::delete('/dashboard/gifts/{giftOption}', [GiftOptionController::class, 'destroy'])->name('dashboard.gifts.destroy');
+    Route::post('/dashboard/gift-types', [GiftOptionTypeController::class, 'store'])->name('dashboard.gift-types.store');
+    Route::patch('/dashboard/gift-types/{giftOptionType}', [GiftOptionTypeController::class, 'update'])->name('dashboard.gift-types.update');
+    Route::delete('/dashboard/gift-types/{giftOptionType}', [GiftOptionTypeController::class, 'destroy'])->name('dashboard.gift-types.destroy');
 
     Route::get('/dashboard/users', [UserController::class, 'index'])->name('dashboard.users.index');
     Route::patch('/dashboard/users/{user}/role', [UserController::class, 'updateRole'])->name('dashboard.users.update-role');
