@@ -1,4 +1,10 @@
 <x-guest-layout>
+    <!-- رسالة عند إعادة التوجيه لعدم تسجيل الدخول (هدية/سلة) -->
+    @if (session('login_required') || request('login_required'))
+        <div class="alert alert-info small mb-3" role="alert">
+            {{ session('login_required', 'يجب تسجيل الدخول أولاً لاختيار الهدية أو إضافتها إلى السلة.') }}
+        </div>
+    @endif
     <!-- Session Status -->
     @if (session('status'))
         <div class="alert alert-success small mb-3" role="alert">
