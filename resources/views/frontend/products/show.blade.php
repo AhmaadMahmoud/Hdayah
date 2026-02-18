@@ -234,7 +234,11 @@
                             body: formData,
                             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                         });
-                        const data = await res.json();
+                        const data = await res.json().catch(() => ({}));
+                        if (res.status === 401 && (data.redirect || data.message)) {
+                            window.location.href = data.redirect || '{{ route("login") }}?login_required=1';
+                            return;
+                        }
                         if (data.ok) {
                             const badge = document.getElementById('navbarCartCount');
                             if (badge) {

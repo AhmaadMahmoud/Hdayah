@@ -8,24 +8,23 @@ use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 
+// صفحات متاحة للجميع (بدون تسجيل دخول)
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
+Route::get('/categories/{category}', function (Category $category) {
+    $products = Product::with(['images', 'category'])
+        ->where('category_id', $category->id)
+        ->latest()
+        ->get();
 
+    return view('frontend.categories.index', compact('category', 'products'));
+})->name('categories.show');
+
+Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
+
+// السلة والهدايا تتطلب تسجيل دخول
 Route::middleware(['auth'])->group(function () {
-    Route::get('/', [HomeController::class, 'index'])->name('home');
-
-
-    Route::get('/categories/{category}', function (Category $category) {
-        $products = Product::with(['images', 'category'])
-            ->where('category_id', $category->id)
-            ->latest()
-            ->get();
-
-        return view('frontend.categories.index', compact('category', 'products'));
-    })->name('categories.show');
-
-
-    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-    Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
     Route::post('/cart/add/{product}', [CartController::class, 'add'])->name('cart.add');
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart/update/{product}', [CartController::class, 'update'])->name('cart.update');
