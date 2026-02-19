@@ -56,7 +56,7 @@
                                 @endif
                             @endforeach
 
-                            <button class="btn bg-white d-inline-flex align-items-center gap-2 shadow-sm"
+                            <button class="btn bg-white d-inline-flex align-items-center gap-2 shadow-sm text-nowrap"
                                 style="border-radius:999px;height:40px;border:1px solid #e5e7eb;" data-bs-toggle="dropdown"
                                 type="button">
                                 <span class="material-symbols-outlined" style="font-size:20px;">sort</span>

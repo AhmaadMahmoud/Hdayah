@@ -85,18 +85,24 @@ class FilterController extends Controller
             ['value' => 'over-500', 'label' => 'أكثر من ٥٠٠ ر.س', 'min' => 500, 'max' => null],
         ];
 
-        $sortEnabled = (bool) data_get($raw, 'sort.enabled', true);
+        // احترم القيم المحفوظة: لو موجودة في الـ raw استخدمها، وإلا الافتراضي
+        $sortEnabled = data_get($raw, 'sort.enabled');
+        $sortEnabled = $sortEnabled === null ? true : (bool) $sortEnabled;
+
         $sortDefault = (string) data_get($raw, 'sort.default', 'relevance');
         $sortOptions = (array) data_get($raw, 'sort.options', array_keys(self::SORT_LABELS));
         $sortOptions = array_values(array_intersect($sortOptions, array_keys(self::SORT_LABELS)));
-        if (!count($sortOptions)) {
+        // لو محفوظ فاضي ما نرجعش للافتراضي عشان اللي المستخدم شاله يفضل شال
+        if (!count($sortOptions) && !array_key_exists('sort', $raw)) {
             $sortOptions = array_keys(self::SORT_LABELS);
         }
-        if (!in_array($sortDefault, $sortOptions, true)) {
-            $sortDefault = $sortOptions[0] ?? 'relevance';
+        if (!in_array($sortDefault, $sortOptions, true) && count($sortOptions) > 0) {
+            $sortDefault = $sortOptions[0];
         }
 
-        $priceEnabled = (bool) data_get($raw, 'price.enabled', true);
+        $priceEnabled = data_get($raw, 'price.enabled');
+        $priceEnabled = $priceEnabled === null ? true : (bool) $priceEnabled;
+
         $priceRaw = (array) data_get($raw, 'price.options', $defaultPriceOptions);
         $priceOptions = [];
         foreach ($priceRaw as $opt) {
@@ -112,12 +118,15 @@ class FilterController extends Controller
                 'max' => data_get($opt, 'max'),
             ];
         }
-        if (!count($priceOptions)) {
+        // لو محفوظ فاضي (المستخدم شال كل النطاقات) ما نرجعش للافتراضي
+        if (!count($priceOptions) && !isset($raw['price']['options'])) {
             $priceOptions = $defaultPriceOptions;
         }
 
-        $searchEnabled = (bool) data_get($raw, 'search.enabled', true);
-        $stockEnabled = (bool) data_get($raw, 'stock.enabled', true);
+        $searchEnabled = data_get($raw, 'search.enabled');
+        $searchEnabled = $searchEnabled === null ? true : (bool) $searchEnabled;
+        $stockEnabled = data_get($raw, 'stock.enabled');
+        $stockEnabled = $stockEnabled === null ? true : (bool) $stockEnabled;
 
         return [
             'sort' => [
@@ -140,15 +149,20 @@ class FilterController extends Controller
 
     private function buildConfig(Request $request, string $prefix): array
     {
-        $sortOptions = (array) $request->input($prefix . 'sort_options', array_keys(self::SORT_LABELS));
+        // قراءة خيارات الترتيب كما أُرسلت فقط (لو كلها مش معلمة الـ request مش هتبعت حاجة)
+        $sortOptions = (array) $request->input($prefix . 'sort_options', []);
         $sortOptions = array_values(array_filter($sortOptions, fn ($v) => array_key_exists($v, self::SORT_LABELS)));
+        // لو مفيش أي خيار مختار نسيّب المصفوفة فاضية بدل ما نرجع الافتراضي
         if (!count($sortOptions)) {
-            $sortOptions = array_keys(self::SORT_LABELS);
+            $sortOptions = [];
         }
 
-        $sortDefault = (string) $request->input($prefix . 'sort_default', $sortOptions[0] ?? 'relevance');
-        if (!in_array($sortDefault, $sortOptions, true)) {
-            $sortDefault = $sortOptions[0] ?? 'relevance';
+        $sortDefault = (string) $request->input($prefix . 'sort_default', 'relevance');
+        if (!in_array($sortDefault, $sortOptions, true) && count($sortOptions) > 0) {
+            $sortDefault = $sortOptions[0];
+        }
+        if (!array_key_exists($sortDefault, self::SORT_LABELS)) {
+            $sortDefault = 'relevance';
         }
 
         $values = (array) $request->input($prefix . 'price_value', []);
@@ -175,15 +189,7 @@ class FilterController extends Controller
                 'max' => $max === '' ? null : $max,
             ];
         }
-
-        if (!count($priceOptions)) {
-            $priceOptions = [
-                ['value' => 'under-100', 'label' => 'أقل من ١٠٠ ر.س', 'min' => null, 'max' => 99.99],
-                ['value' => '100-300', 'label' => '١٠٠ - ٣٠٠ ر.س', 'min' => 100, 'max' => 300],
-                ['value' => '300-500', 'label' => '٣٠٠ - ٥٠٠ ر.س', 'min' => 300, 'max' => 500],
-                ['value' => 'over-500', 'label' => 'أكثر من ٥٠٠ ر.س', 'min' => 500, 'max' => null],
-            ];
-        }
+        // لو المستخدم شال كل النطاقات نسيّب المصفوفة فاضية (ما نرجعش للافتراضي)
 
         return [
             'sort' => [

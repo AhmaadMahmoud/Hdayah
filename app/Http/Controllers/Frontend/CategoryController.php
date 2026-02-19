@@ -119,18 +119,18 @@ class CategoryController extends Controller
             ['value' => 'over-500', 'label' => 'أكثر من ٥٠٠ ر.س', 'min' => 500, 'max' => null],
         ];
 
-        $sortEnabled = (bool) data_get($raw, 'sort.enabled', true);
+        $sortEnabled = array_key_exists('sort', $raw) ? (bool) data_get($raw, 'sort.enabled', true) : true;
         $sortDefault = (string) data_get($raw, 'sort.default', 'relevance');
         $sortOptions = (array) data_get($raw, 'sort.options', ['relevance', 'price_asc', 'price_desc', 'latest']);
         $sortOptions = array_values(array_intersect($sortOptions, ['relevance', 'price_asc', 'price_desc', 'latest']));
-        if (!count($sortOptions)) {
+        if (!count($sortOptions) && !isset($raw['sort']['options'])) {
             $sortOptions = ['relevance', 'price_asc', 'price_desc', 'latest'];
         }
-        if (!in_array($sortDefault, $sortOptions, true)) {
+        if (count($sortOptions) && !in_array($sortDefault, $sortOptions, true)) {
             $sortDefault = $sortOptions[0];
         }
 
-        $priceEnabled = (bool) data_get($raw, 'price.enabled', true);
+        $priceEnabled = array_key_exists('price', $raw) ? (bool) data_get($raw, 'price.enabled', true) : true;
         $priceRaw = (array) data_get($raw, 'price.options', $defaultPriceOptions);
         $priceOptions = [];
         foreach ($priceRaw as $opt) {
@@ -146,12 +146,12 @@ class CategoryController extends Controller
                 'max' => data_get($opt, 'max'),
             ];
         }
-        if (!count($priceOptions)) {
+        if (!count($priceOptions) && !isset($raw['price']['options'])) {
             $priceOptions = $defaultPriceOptions;
         }
 
-        $searchEnabled = (bool) data_get($raw, 'search.enabled', true);
-        $stockEnabled = (bool) data_get($raw, 'stock.enabled', true);
+        $searchEnabled = array_key_exists('search', $raw) ? (bool) data_get($raw, 'search.enabled', true) : true;
+        $stockEnabled = array_key_exists('stock', $raw) ? (bool) data_get($raw, 'stock.enabled', true) : true;
 
         return [
             'sort' => [

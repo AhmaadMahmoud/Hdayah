@@ -65,6 +65,14 @@ class GiftController extends Controller
             'payment_method' => ['required', 'in:card,cash'],
         ]);
 
+        if (!$paymob->isConfigured()) {
+            return view('frontend.gifts.checkout', array_merge($selection, [
+                'product' => $product,
+                'paymentMethod' => $validated['payment_method'],
+                'error' => __('Payment gateway is not configured. Please add Paymob credentials (PAYMOB_API_KEY, etc.) in .env and try again.'),
+            ]));
+        }
+
         $amountCents = (int) round($selection['total'] * 100);
         $billing = $this->defaultBillingData($request);
 
@@ -77,28 +85,47 @@ class GiftController extends Controller
             'meta' => $selection['meta_for_order'],
         ]);
 
-        $orderId = $paymob->createOrder(
-            $amountCents,
-            $product->name,
-            [
-                'merchant_order_id' => Str::uuid()->toString(),
-                'selection' => $selection['by_slug'],
-                'message' => $selection['message'],
-            ],
-            $billing
-        );
+        try {
+            $orderId = $paymob->createOrder(
+                $amountCents,
+                $product->name,
+                [
+                    'merchant_order_id' => Str::uuid()->toString(),
+                    'selection' => $selection['by_slug'],
+                    'message' => $selection['message'],
+                ],
+                $billing
+            );
+        } catch (RequestException $e) {
+            $this->logPaymobException($e, 'createOrder');
+            $order->delete();
+            return view('frontend.gifts.checkout', array_merge($selection, [
+                'product' => $product,
+                'paymentMethod' => $validated['payment_method'],
+                'error' => __('Payment service is temporarily unavailable. Please try again later or choose another payment method.'),
+            ]));
+        }
 
         $order->update([
             'gateway_order_id' => $orderId,
         ]);
 
         if ($validated['payment_method'] === 'cash') {
-            $cashBill = $paymob->createCashCollection(
-                $amountCents,
-                $orderId,
-                $billing,
-                config('services.paymob.integration_id_cash')
-            );
+            try {
+                $cashBill = $paymob->createCashCollection(
+                    $amountCents,
+                    $orderId,
+                    $billing,
+                    config('services.paymob.integration_id_cash')
+                );
+            } catch (RequestException $e) {
+                $this->logPaymobException($e, 'createCashCollection');
+                return view('frontend.gifts.checkout', array_merge($selection, [
+                    'product' => $product,
+                    'paymentMethod' => 'cash',
+                    'error' => __('Payment service is temporarily unavailable. Please try again later.'),
+                ]));
+            }
 
             return view('frontend.gifts.checkout', array_merge($selection, [
                 'product' => $product,
@@ -108,12 +135,21 @@ class GiftController extends Controller
             ]));
         }
 
-        $paymentKey = $paymob->createPaymentKey(
-            $amountCents,
-            $orderId,
-            $billing,
-            config('services.paymob.integration_id_card')
-        );
+        try {
+            $paymentKey = $paymob->createPaymentKey(
+                $amountCents,
+                $orderId,
+                $billing,
+                config('services.paymob.integration_id_card')
+            );
+        } catch (RequestException $e) {
+            $this->logPaymobException($e, 'createPaymentKey');
+            return view('frontend.gifts.checkout', array_merge($selection, [
+                'product' => $product,
+                'paymentMethod' => 'card',
+                'error' => __('Payment service is temporarily unavailable. Please try again later.'),
+            ]));
+        }
 
         $order->update([
             'status' => Order::STATUS_PENDING_PAYMENT,
@@ -236,5 +272,23 @@ class GiftController extends Controller
             'last_name' => $lastName,
             'state' => 'NA',
         ];
+    }
+
+    private function logPaymobException(RequestException $e, string $step): void
+    {
+        report($e);
+        $response = $e->response;
+        $uri = null;
+        if ($response && method_exists($response, 'effectiveUri')) {
+            $u = $response->effectiveUri();
+            $uri = $u ? (string) $u : null;
+        }
+        $failingEndpoint = $uri ? (str_contains($uri, 'auth/tokens') ? 'auth (tokens)' : (str_contains($uri, 'ecommerce/orders') ? 'orders' : (str_contains($uri, 'payment_keys') ? 'payment_keys' : 'pay'))) : 'unknown';
+        Log::error('Paymob API failed: ' . $step . ' | failing endpoint: ' . $failingEndpoint, [
+            'message' => $e->getMessage(),
+            'status' => $response?->status(),
+            'body' => $response?->body(),
+            'url' => $uri,
+        ]);
     }
 }

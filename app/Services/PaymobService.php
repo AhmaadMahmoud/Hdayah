@@ -14,6 +14,31 @@ class PaymobService
         $this->baseUrl = rtrim(config('services.paymob.base_url', 'https://accept.paymob.com'), '/');
     }
 
+    /**
+     * POST to Paymob with retry on 502/503 (gateway/backend errors).
+     */
+    private function postWithRetry(string $url, array $payload, int $maxAttempts = 3): \Illuminate\Http\Client\Response
+    {
+        $attempt = 0;
+        while (true) {
+            $attempt++;
+            $response = Http::acceptJson()
+                ->timeout(30)
+                ->post($url, $payload);
+
+            if ($response->successful()) {
+                return $response;
+            }
+
+            $retryable = in_array($response->status(), [502, 503], true);
+            if (!$retryable || $attempt >= $maxAttempts) {
+                $response->throw();
+            }
+
+            sleep(2);
+        }
+    }
+
     public function authenticate(): string
     {
         $response = Http::acceptJson()->post($this->baseUrl . '/api/auth/tokens', [
@@ -27,7 +52,8 @@ class PaymobService
     {
         $token = $this->authenticate();
 
-        $response = Http::acceptJson()->post($this->baseUrl . '/api/ecommerce/orders', [
+        $url = $this->baseUrl . '/api/ecommerce/orders';
+        $payload = [
             'auth_token' => $token,
             'delivery_needed' => 'false',
             'amount_cents' => $amountCents,
@@ -42,7 +68,8 @@ class PaymobService
             'merchant_order_id' => $metadata['merchant_order_id'] ?? Str::uuid()->toString(),
             'shipping_data' => $shippingData ?: ($metadata['shipping_data'] ?? []),
             'metadata' => $metadata,
-        ])->throw();
+        ];
+        $response = $this->postWithRetry($url, $payload);
 
         return (int) $response->json('id');
     }
@@ -51,7 +78,8 @@ class PaymobService
     {
         $token = $this->authenticate();
 
-        $response = Http::acceptJson()->post($this->baseUrl . '/api/acceptance/payment_keys', [
+        $url = $this->baseUrl . '/api/acceptance/payment_keys';
+        $payload = [
             'auth_token' => $token,
             'amount_cents' => $amountCents,
             'expiration' => 3600,
@@ -59,7 +87,8 @@ class PaymobService
             'currency' => 'EGP',
             'integration_id' => $integrationId ?? config('services.paymob.integration_id_card'),
             'billing_data' => $billingData,
-        ])->throw();
+        ];
+        $response = $this->postWithRetry($url, $payload);
 
         return $response->json('token');
     }
@@ -80,13 +109,15 @@ class PaymobService
             $integrationId ?? config('services.paymob.integration_id_cash')
         );
 
-        $response = Http::acceptJson()->post($this->baseUrl . '/api/acceptance/payments/pay', [
+        $url = $this->baseUrl . '/api/acceptance/payments/pay';
+        $payload = [
             'source' => [
                 'identifier' => 'cash',
                 'subtype' => 'CASH',
             ],
             'payment_token' => $paymentKey,
-        ])->throw();
+        ];
+        $response = $this->postWithRetry($url, $payload);
 
         return [
             'id' => $response->json('id'),
